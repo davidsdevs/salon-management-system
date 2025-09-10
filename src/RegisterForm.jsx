@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useNavigate } from "react-router-dom"
 import { createUserWithEmailAndPassword, fetchSignInMethodsForEmail } from "firebase/auth"
-import { doc, setDoc } from "firebase/firestore"
+import { collection, query, where, getDocs, doc, setDoc } from "firebase/firestore"
 import { auth, db } from "./firebase"
 import PersonalInfoStep from "./common/components/register-steps/PersonalInfoStep"
 import AccountSecurityStep from "./common/components/register-steps/AccountSecurityStep"
@@ -23,6 +23,9 @@ function RegisterForm() {
   const [success, setSuccess] = useState("")
   const [referralModalOpen, setReferralModalOpen] = useState(true)
   const [referralInput, setReferralInput] = useState("")
+  const [referralError, setReferralError] = useState("")
+  const [referralValid, setReferralValid] = useState(false)
+
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -59,22 +62,57 @@ function RegisterForm() {
     })
   }
 
+  // ✅ Check referral validity whenever input changes (debounced)
+  useEffect(() => {
+    if (!referralInput.trim()) {
+      setReferralError("")
+      setReferralValid(false)
+      return
+    }
+
+    const timer = setTimeout(async () => {
+      try {
+        const q = query(
+          collection(db, "loyalty"),
+          where("referral_code", "==", referralInput.trim())
+        )
+        const querySnapshot = await getDocs(q)
+
+        if (querySnapshot.empty) {
+          setReferralError("Invalid referral code. Please check and try again.")
+          setReferralValid(false)
+        } else {
+          setReferralError("")
+          setReferralValid(true)
+        }
+      } catch (err) {
+        console.error("Error checking referral:", err)
+        setReferralError("Something went wrong. Please try again later.")
+        setReferralValid(false)
+      }
+    }, 500) // debounce 500ms
+
+    return () => clearTimeout(timer)
+  }, [referralInput])
+
   const handleRegistration = async () => {
     setIsLoading(true)
     setError("")
     setSuccess("")
-
+  
     try {
+      // Check if email is already registered
       const signInMethods = await fetchSignInMethodsForEmail(auth, formData.email)
       if (signInMethods.length > 0) {
         setError("An account with this email already exists. Please use a different email address.")
         setIsLoading(false)
         return
       }
-
+  
+      // Create user
       const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password)
       const user = userCredential.user
-
+  
       // 1️⃣ Save personal info
       const personalInfo = {
         uid: user.uid,
@@ -85,10 +123,10 @@ function RegisterForm() {
         gender: formData.gender,
         phoneNumber: formData.phoneNumber,
         emailVerified: false,
-        referralCode: formData.referralCode || null, // ✅ Store referral if provided
+        referralCode: formData.referralCode || null,
       }
       await setDoc(doc(db, "users", user.uid), personalInfo)
-
+  
       // 2️⃣ Save account info
       const accountInfo = {
         userId: user.uid,
@@ -99,13 +137,41 @@ function RegisterForm() {
         createdAt: new Date().toISOString(),
       }
       await setDoc(doc(db, "clients_account", user.uid), accountInfo)
-
+  
+      // 3️⃣ Handle referral (if any)
+      if (formData.referralCode) {
+        const referralQuery = query(
+          collection(db, "loyalty"),
+          where("referral_code", "==", formData.referralCode)
+        )
+        const referralSnapshot = await getDocs(referralQuery)
+  
+        if (!referralSnapshot.empty) {
+          const refDoc = referralSnapshot.docs[0]
+          const refData = refDoc.data()
+  
+          // a) Add a record to referrals collection
+          await setDoc(doc(collection(db, "referrals")), {
+            newUserId: user.uid,
+            referralCode: formData.referralCode,
+            account_id: refData.account_id,
+            branch_id: refData.branch_id,
+            timestamp: new Date().toISOString(),
+          })
+  
+          // b) Increment loyalty points by 300
+          await setDoc(doc(db, "loyalty", refDoc.id), {
+            points: (refData.points || 0) + 300
+          }, { merge: true })
+        }
+      }
+  
       setSuccess("Account created successfully! Please check your email for verification.")
-
+  
       // ✅ Move to welcome step
       setCurrentStep(5)
       sessionStorage.setItem("registerStep", 5)
-
+  
     } catch (error) {
       console.error("Registration error:", error)
       setError("Registration failed. Please try again.")
@@ -113,89 +179,12 @@ function RegisterForm() {
       setIsLoading(false)
     }
   }
+  
 
   // Cleanup on unmount
   useEffect(() => {
     return () => sessionStorage.removeItem("registerStep")
   }, [])
-
-  // Progress bar renderer
-  const renderProgressBar = () => {
-    return (
-      <div className="flex flex-col items-center mb-8">
-        <div className="flex items-center space-x-4 mb-4">
-          {[1, 2, 3, 4, 5].map((step) => (
-            <div
-              key={step}
-              className={`w-12 h-12 rounded-full flex items-center justify-center text-white font-medium ${
-                step <= currentStep ? "bg-[#160B53]" : "bg-gray-300"
-              }`}
-            >
-              {step}
-            </div>
-          ))}
-        </div>
-        <div className="w-full max-w-md bg-gray-200 rounded-full h-2">
-          <div
-            className="bg-[#160B53] h-2 rounded-full transition-all duration-300"
-            style={{ width: `${(currentStep / totalSteps) * 100}%` }}
-          ></div>
-        </div>
-        <p className="text-gray-600 mt-2 text-sm">
-          Step {currentStep} of {totalSteps}
-        </p>
-      </div>
-    )
-  }
-
-  // Step renderer
-  const renderCurrentStep = () => {
-    switch (currentStep) {
-      case 1:
-        return (
-          <PersonalInfoStep
-            formData={formData}
-            updateFormData={updateFormData}
-            onNext={nextStep}
-            onNavigateToLogin={() => navigate("/")}
-          />
-        )
-      case 2:
-        return (
-          <AccountSecurityStep
-            formData={formData}
-            updateFormData={updateFormData}
-            onNext={nextStep}
-            onBack={prevStep}
-            onNavigateToLogin={() => navigate("/")}
-          />
-        )
-      case 3:
-        return (
-          <ContactPreferencesStep
-            formData={formData}
-            updateFormData={updateFormData}
-            onNext={nextStep}
-            onBack={prevStep}
-            onNavigateToLogin={() => navigate("/")}
-          />
-        )
-      case 4:
-        return (
-          <EmailVerificationStep
-            formData={formData}
-            onNext={handleRegistration}
-            onBack={prevStep}
-            onNavigateToLogin={() => navigate("/")}
-            isLoading={isLoading}
-          />
-        )
-      case 5:
-        return <WelcomeStep onNavigateToLogin={() => navigate("/")} />
-      default:
-        return null
-    }
-  }
 
   // Referral modal
   const renderReferralModal = () => {
@@ -222,24 +211,37 @@ function RegisterForm() {
             value={referralInput}
             onChange={(e) => setReferralInput(e.target.value)}
             placeholder="Enter referral code"
-            className="w-full border rounded-lg p-2 mb-4 focus:outline-none focus:ring-2 focus:ring-[#160B53]"
+            className="w-full border rounded-lg p-2 mb-2 focus:outline-none focus:ring-2 focus:ring-[#160B53]"
           />
 
-          <div className="flex justify-end gap-3 w-full">
+          {/* Error / Success messages */}
+          {referralError && (
+            <p className="text-red-500 text-sm mb-2">{referralError}</p>
+          )}
+          {referralValid && (
+            <p className="text-green-600 text-sm mb-2">Referral code is valid</p>
+          )}
+
+          <div className="flex justify-end gap-3 w-full mt-2">
             <button
-              onClick={() => {
-                setReferralModalOpen(false)
-              }}
+              onClick={() => setReferralModalOpen(false)}
               className="px-4 py-2 rounded-lg bg-gray-200 text-gray-700 hover:bg-gray-300"
             >
               Skip
             </button>
             <button
               onClick={() => {
-                setFormData((prev) => ({ ...prev, referralCode: referralInput }))
-                setReferralModalOpen(false)
+                if (referralValid) {
+                  setFormData((prev) => ({ ...prev, referralCode: referralInput.trim() }))
+                  setReferralModalOpen(false)
+                }
               }}
-              className="px-4 py-2 rounded-lg bg-[#160B53] text-white hover:bg-[#0f073d]"
+              disabled={!referralValid}
+              className={`px-4 py-2 rounded-lg text-white ${
+                referralValid
+                  ? "bg-[#160B53] hover:bg-[#0f073d]"
+                  : "bg-gray-400 cursor-not-allowed"
+              }`}
             >
               Confirm
             </button>
@@ -271,8 +273,45 @@ function RegisterForm() {
           </div>
         )}
 
-        {renderProgressBar()}
-        {renderCurrentStep()}
+        {/* Render steps */}
+        {currentStep === 1 && (
+          <PersonalInfoStep
+            formData={formData}
+            updateFormData={updateFormData}
+            onNext={nextStep}
+            onNavigateToLogin={() => navigate("/")}
+          />
+        )}
+        {currentStep === 2 && (
+          <AccountSecurityStep
+            formData={formData}
+            updateFormData={updateFormData}
+            onNext={nextStep}
+            onBack={prevStep}
+            onNavigateToLogin={() => navigate("/")}
+          />
+        )}
+        {currentStep === 3 && (
+          <ContactPreferencesStep
+            formData={formData}
+            updateFormData={updateFormData}
+            onNext={nextStep}
+            onBack={prevStep}
+            onNavigateToLogin={() => navigate("/")}
+          />
+        )}
+        {currentStep === 4 && (
+          <EmailVerificationStep
+            formData={formData}
+            onNext={handleRegistration}
+            onBack={prevStep}
+            onNavigateToLogin={() => navigate("/")}
+            isLoading={isLoading}
+          />
+        )}
+        {currentStep === 5 && (
+          <WelcomeStep onNavigateToLogin={() => navigate("/")} />
+        )}
       </div>
     </div>
   )

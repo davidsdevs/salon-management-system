@@ -159,4 +159,4 @@ const InventoryControllerSidebarWithHeader = ({ userInfo, pageTitle, children })
   )
 }
 
-export default OperationalManagerSidebarWithHeader
+export default InventoryControllerSidebarWithHeader

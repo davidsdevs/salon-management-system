@@ -65,7 +65,7 @@ const SidebarWithHeader = ({ userInfo, pageTitle, children }) => {
 
             <div className="flex items-center space-x-3">
               <div className="w-12 h-12 rounded-full bg-gray-300 overflow-hidden">
-                <img src={userInfo.profileImage || "../.././placeholder.svg"} alt={userInfo.name} className="w-full h-full object-cover" />
+                <img src={userInfo.profileImage || "../../placeholder.svg"} alt={userInfo.name} className="w-full h-full object-cover" />
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900">{userInfo.name}</h3>
