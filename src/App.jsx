@@ -260,7 +260,7 @@ function AppRoutes() {
       <Route
         path="/inventory-dashboard"
         element={
-          <ProtectedRoute requiredRole="inventory controller">
+          <ProtectedRoute requiredRole="inventory-controller">
             <InventoryDashboard/>
           </ProtectedRoute>
         }
@@ -270,8 +270,8 @@ function AppRoutes() {
       <Route
         path="/branchmanager-dashboard"
         element={
-          <ProtectedRoute requiredRole="branch manager">
-            <BranchAdminDashboard />
+          <ProtectedRoute requiredRole="branch-manager">
+            <BranchManagerDashboard />
           </ProtectedRoute>
         }
       />
@@ -280,7 +280,7 @@ function AppRoutes() {
       <Route
         path="/branchadmin-dashboard"
         element={
-          <ProtectedRoute requiredRole="branch admin">
+          <ProtectedRoute requiredRole="branch-admin">
             <BranchAdminDashboard />
           </ProtectedRoute>
         }
@@ -290,7 +290,7 @@ function AppRoutes() {
       <Route
         path="/operational-dashboard"
         element={
-          <ProtectedRoute requiredRole="operational manager">
+          <ProtectedRoute requiredRole="operational-manager">
             <OperationalManagerDashboard />
           </ProtectedRoute>
         }
@@ -308,9 +308,9 @@ function AppRoutes() {
 
       {/* Protected System Admin Routes */}
       <Route
-        path="/systemadmin-dashboard"
+        path="/super-admin-dashboard"
         element={
-          <ProtectedRoute requiredRole="system admin">
+          <ProtectedRoute requiredRole="super-admin">
             <SuperAdminDashboard />
           </ProtectedRoute>
         }
