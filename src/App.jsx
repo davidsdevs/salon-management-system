@@ -27,6 +27,28 @@ import BranchProductsPage from "./BranchProductsPage";
 import ServiceDetailPage from "./ServiceDetailPage";
 import StylistProfilePage from "./StylistProfilePage";
 
+// RECEPTIONIST PAGES
+import ReceptionistDashboard from "./Receptionist/ReceptionistDashboard";
+
+// INVENTORY CONTROLLER PAGES
+import InventoryControllerDashboard from "./InventoryController/InventoryDashboard";
+
+// BRANCH MANAGER PAGES
+import BranchManagerDashboard from "./BranchManager/BranchManagerDashboard";
+
+// BRANCH ADMIN PAGES
+import BranchAdminDashboard from "./BranchAdmin/BranchAdminDashboard";
+
+// OPERATIONAL MANAGER PAGES
+import OperationalManagerDashboard from "./OperationalManager/OperationalDashboard";
+
+// SYSTEM ADMIN PAGES
+import SuperAdminDashboard from "./SystemAdmin/SuperAdminDashboard";
+// Inventory Controller PAGES
+import InventoryDashboard from "./InventoryController/InventoryDashboard";
+// Stylist PAGES
+import StylistDashboard from "./Stylist/StylistDashboard";
+
 function AppRoutes() {
   const { loading } = useAuth();
 
@@ -167,8 +189,7 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-
-      {/* Appointments Route (Parent) */}
+      
       <Route
         path="/client-appointments"
         element={
@@ -177,7 +198,6 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-
       {/* Book Appointment as Child Route */}
       <Route
         path="/client-appointments/book"
@@ -187,12 +207,81 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-
       <Route
         path="/client-profile"
         element={
           <ProtectedRoute requiredRole="client">
             <ClientProfile />
+          </ProtectedRoute>
+        }
+      />
+      
+      {/* Protected Receptionist Routes */}
+      <Route
+        path="/receptionist-dashboard"
+        element={
+          <ProtectedRoute requiredRole="receptionist">
+            <ReceptionistDashboard/>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Protected Inventory Controller Routes */}
+      <Route
+        path="/inventory-dashboard"
+        element={
+          <ProtectedRoute requiredRole="inventory controller">
+            <InventoryDashboard/>
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Protected Branch Manager Routes */}
+      <Route
+        path="/branchmanager-dashboard"
+        element={
+          <ProtectedRoute requiredRole="branch manager">
+            <BranchAdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Protected Branch Admin Routes */}
+      <Route
+        path="/branchadmin-dashboard"
+        element={
+          <ProtectedRoute requiredRole="branch admin">
+            <BranchAdminDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Protected Operational Manager Routes */}
+      <Route
+        path="/operational-dashboard"
+        element={
+          <ProtectedRoute requiredRole="operational manager">
+            <OperationalManagerDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Protected Stylist Routes */}
+      <Route
+        path="/stylist-dashboard"
+        element={
+          <ProtectedRoute requiredRole="stylist">
+            <StylistDashboard />
+          </ProtectedRoute>
+        }
+      />
+
+      {/* Protected System Admin Routes */}
+      <Route
+        path="/systemadmin-dashboard"
+        element={
+          <ProtectedRoute requiredRole="system admin">
+            <SuperAdminDashboard />
           </ProtectedRoute>
         }
       />
