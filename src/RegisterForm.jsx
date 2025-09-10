@@ -123,7 +123,6 @@ function RegisterForm() {
         gender: formData.gender,
         phoneNumber: formData.phoneNumber,
         emailVerified: false,
-        referralCode: formData.referralCode || null,
       }
       await setDoc(doc(db, "users", user.uid), personalInfo)
   
