@@ -1,18 +1,31 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
-import Header from "./common/components/Header";
 import LoginForm from "./LoginForm";
 import RegisterForm from "./RegisterForm";
 import ForgotPassword from "./ForgotPassword";
 import ResetPassword from "./ResetPassword";
-import Footer from "./common/components/Footer";
+import Navigation from "./components/Navigation";
+import Footer from "./components/Footer";
+import ScrollToTop from "./components/ScrollToTop";
 
 // CLIENT PAGES
 import ClientDashboard from "./Client/ClientDashboard";
 import ClientAppointment from "./Client/ClientAppointments";
 import ClientProfile from "./Client/ClientProfile";
 import ClientBookAppointment from "./Client/ClientBookAppointment";
+
+// LANDING PAGES
+import HomePage from "./HomePage";
+import AboutPage from "./AboutPage";
+import ProductsPage from "./ProductsPage";
+import BranchPage from "./BranchPage";
+import BranchServicesPage from "./BranchServicesPage";
+import BranchStylistsPage from "./BranchStylistsPage";
+import BranchGalleryPage from "./BranchGalleryPage";
+import BranchProductsPage from "./BranchProductsPage";
+import ServiceDetailPage from "./ServiceDetailPage";
+import StylistProfilePage from "./StylistProfilePage";
 
 function AppRoutes() {
   const { loading } = useAuth();
@@ -27,12 +40,80 @@ function AppRoutes() {
 
   return (
     <Routes>
-      {/* Public Routes */}
+      {/* Landing Page Routes */}
       <Route
         path="/"
         element={
+          <div className="min-h-screen bg-white">
+            <Navigation />
+            <main>
+              <HomePage />
+            </main>
+            <Footer />
+          </div>
+        }
+      />
+      <Route
+        path="/about"
+        element={
+          <div className="min-h-screen bg-white">
+            <Navigation />
+            <main>
+              <AboutPage />
+            </main>
+            <Footer />
+          </div>
+        }
+      />
+      <Route
+        path="/products"
+        element={
+          <div className="min-h-screen bg-white">
+            <Navigation />
+            <main>
+              <ProductsPage />
+            </main>
+            <Footer />
+          </div>
+        }
+      />
+      
+      {/* Branch Routes */}
+      <Route
+        path="/branch/:slug"
+        element={<BranchPage />}
+      />
+      <Route
+        path="/branch/:slug/services"
+        element={<BranchServicesPage />}
+      />
+      <Route
+        path="/branch/:slug/services/:serviceId"
+        element={<ServiceDetailPage />}
+      />
+      <Route
+        path="/branch/:slug/stylists"
+        element={<BranchStylistsPage />}
+      />
+      <Route
+        path="/branch/:slug/stylists/:stylistId"
+        element={<StylistProfilePage />}
+      />
+      <Route
+        path="/branch/:slug/gallery"
+        element={<BranchGalleryPage />}
+      />
+      <Route
+        path="/branch/:slug/products"
+        element={<BranchProductsPage />}
+      />
+
+      {/* Auth Routes */}
+      <Route
+        path="/login"
+        element={
           <div className="min-h-screen flex flex-col bg-gray-50">
-            <Header />
+            <Navigation />
             <main className="flex-1">
               <LoginForm />
             </main>
@@ -44,7 +125,7 @@ function AppRoutes() {
         path="/register"
         element={
           <div className="min-h-screen flex flex-col bg-gray-50">
-            <Header />
+            <Navigation />
             <main className="flex-1">
               <RegisterForm />
             </main>
@@ -56,7 +137,7 @@ function AppRoutes() {
         path="/forgot-password"
         element={
           <div className="min-h-screen flex flex-col bg-gray-50">
-            <Header />
+            <Navigation />
             <main className="flex-1">
               <ForgotPassword />
             </main>
@@ -68,7 +149,7 @@ function AppRoutes() {
         path="/reset-password"
         element={
           <div className="min-h-screen flex flex-col bg-gray-50">
-            <Header />
+            <Navigation />
             <main className="flex-1">
               <ResetPassword />
             </main>
@@ -126,6 +207,7 @@ function App() {
   return (
     <AuthProvider>
       <Router>
+        <ScrollToTop />
         <AppRoutes />
       </Router>
     </AuthProvider>
