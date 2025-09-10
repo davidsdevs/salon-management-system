@@ -10,3 +10,4 @@ export default function BranchLayout({ children, branchName }) {
     </div>
   )
 }
+

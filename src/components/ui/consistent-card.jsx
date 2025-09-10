@@ -46,3 +46,4 @@ const ConsistentCardContent = React.forwardRef(({ className, ...props }, ref) =>
 ConsistentCardContent.displayName = "ConsistentCardContent"
 
 export { ConsistentCard, ConsistentCardContent }
+

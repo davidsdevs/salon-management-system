@@ -69,17 +69,29 @@ const LoginForm = () => {
 
         // Force navigation to correct dashboard
         setTimeout(() => {
-          const dashboardPath = `/${userRole || "client"}-dashboard`
+          // Map role names to correct dashboard paths
+          const roleMap = {
+            "client": "client-dashboard",
+            "receptionist": "receptionist-dashboard", 
+            "inventory-controller": "inventory-dashboard",
+            "branch-manager": "branchmanager-dashboard",
+            "branch-admin": "branchadmin-dashboard",
+            "operational-manager": "operational-dashboard",
+            "stylist": "stylist-dashboard",
+            "super-admin": "systemadmin-dashboard"
+          }
+          
+          const dashboardPath = `/${roleMap[userRole] || "client-dashboard"}`
           console.log("Navigating to:", dashboardPath)
           navigate(dashboardPath, { replace: true })
-        }, 1500)
+        }, 1000)
 
       } catch (firestoreError) {
         console.error("Error refreshing user role:", firestoreError)
         // Default to client dashboard
         setTimeout(() => {
           navigate("/client-dashboard", { replace: true })
-        }, 1500)
+        }, 1000)
       }
 
     } catch (error) {

@@ -2,6 +2,7 @@
 import { LogOut, Menu } from "lucide-react"
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { useAuth } from "../../../contexts/AuthContext"
 import { 
   LayoutDashboard, 
   Building2, 
@@ -16,6 +17,7 @@ const BranchAdminSidebarWithHeader = ({ userInfo, pageTitle, children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeItem, setActiveItem] = useState("Dashboard")
   const navigate = useNavigate()
+  const { logout } = useAuth()
 
   const getCurrentDate = () => {
     const options = {
@@ -45,8 +47,8 @@ const BranchAdminSidebarWithHeader = ({ userInfo, pageTitle, children }) => {
 
   const handleLogout = async () => {
     try {
-      // You can add logout logic here if needed
-      navigate("/")
+      await logout()
+      navigate("/login")
     } catch (error) {
       console.error("Logout failed:", error)
     }

@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter as Router, Routes, Route, Navigate, useNavigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./contexts/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import LoginForm from "./LoginForm";
@@ -8,6 +8,7 @@ import ResetPassword from "./ResetPassword";
 import Navigation from "./components/Navigation";
 import Footer from "./components/Footer";
 import ScrollToTop from "./components/ScrollToTop";
+import { useEffect } from "react";
 
 // CLIENT PAGES
 import ClientDashboard from "./Client/ClientDashboard";
@@ -49,6 +50,43 @@ import InventoryDashboard from "./InventoryController/InventoryDashboard";
 // Stylist PAGES
 import StylistDashboard from "./Stylist/StylistDashboard";
 
+// HomePage wrapper that redirects authenticated users
+function HomePageWrapper() {
+  const { isAuthenticated, userRole } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (isAuthenticated && userRole) {
+      // Map role names to correct dashboard paths
+      const roleMap = {
+        "client": "client-dashboard",
+        "receptionist": "receptionist-dashboard", 
+        "inventory-controller": "inventory-dashboard",
+        "branch-manager": "branchmanager-dashboard",
+        "branch-admin": "branchadmin-dashboard",
+        "operational-manager": "operational-dashboard",
+        "stylist": "stylist-dashboard",
+        "super-admin": "systemadmin-dashboard"
+      };
+      
+      const dashboardPath = `/${roleMap[userRole] || "client-dashboard"}`;
+      console.log("Redirecting authenticated user to:", dashboardPath);
+      navigate(dashboardPath, { replace: true });
+    }
+  }, [isAuthenticated, userRole, navigate]);
+
+  // Show homepage for non-authenticated users
+  return (
+    <div className="min-h-screen bg-white">
+      <Navigation />
+      <main>
+        <HomePage />
+      </main>
+      <Footer />
+    </div>
+  );
+}
+
 function AppRoutes() {
   const { loading } = useAuth();
 
@@ -65,15 +103,7 @@ function AppRoutes() {
       {/* Landing Page Routes */}
       <Route
         path="/"
-        element={
-          <div className="min-h-screen bg-white">
-            <Navigation />
-            <main>
-              <HomePage />
-            </main>
-            <Footer />
-          </div>
-        }
+        element={<HomePageWrapper />}
       />
       <Route
         path="/about"

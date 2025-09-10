@@ -1,12 +1,9 @@
 import { Button } from "./ui/button"
-import { NavigationButton } from "./ui"
 import { Link, useLocation, useNavigate } from "react-router-dom"
-import { useAuth } from "../contexts/AuthContext"
 
 export default function Navigation() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { isAuthenticated, userRole, logout } = useAuth()
 
   const isActive = (path) => {
     return location.pathname === path
@@ -55,10 +52,6 @@ export default function Navigation() {
     }
   }
 
-  const handleLogout = () => {
-    logout()
-    navigate('/')
-  }
 
   return (
     <nav className="w-full bg-white fixed top-0 z-50" style={{ height: '122px', minHeight: '122px', boxShadow: '0 4px 4px 0 rgba(0, 0, 0, 0.25)' }}>
@@ -114,39 +107,21 @@ export default function Navigation() {
         </div>
 
         <div className="flex items-center space-x-4">
-          {isAuthenticated ? (
-            <>
-              <Link to={`/${userRole}-dashboard`}>
-                <NavigationButton variant="outline">
-                  DASHBOARD
-                </NavigationButton>
-              </Link>
-              <NavigationButton 
-                onClick={handleLogout}
-                variant="destructive"
-              >
-                LOGOUT
-              </NavigationButton>
-            </>
-          ) : (
-            <>
-              <Link to="/register">
-                <Button 
-                  variant="outline"
-                  className="bg-white border-[#160B53] text-[#160B53] hover:bg-[#160B53] hover:text-white font-poppins font-semibold"
-                >
-                  REGISTER
-                </Button>
-              </Link>
-              <Link to="/login">
-                <Button 
-                  className="bg-[#160B53] hover:bg-[#160B53]/90 text-white font-poppins font-semibold"
-                >
-                  LOGIN
-                </Button>
-              </Link>
-            </>
-          )}
+          <Link to="/register">
+            <Button 
+              variant="outline"
+              className="bg-white border-[#160B53] text-[#160B53] hover:bg-[#160B53] hover:text-white font-poppins font-semibold"
+            >
+              REGISTER
+            </Button>
+          </Link>
+          <Link to="/login">
+            <Button 
+              className="bg-[#160B53] hover:bg-[#160B53]/90 text-white font-poppins font-semibold"
+            >
+              LOGIN
+            </Button>
+          </Link>
         </div>
       </div>
     </nav>

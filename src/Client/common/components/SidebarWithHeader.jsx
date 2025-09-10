@@ -1,6 +1,7 @@
 import { LogOut, Menu } from "lucide-react"
 import { useState, useEffect } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
+import { useAuth } from "../../../contexts/AuthContext"
 import { 
   LayoutDashboard, 
   Calendar,
@@ -12,6 +13,7 @@ const SidebarWithHeader = ({ userInfo, pageTitle, children }) => {
   const [activeItem, setActiveItem] = useState("Dashboard")
   const navigate = useNavigate()
   const location = useLocation()
+  const { logout } = useAuth()
 
   const getCurrentDate = () => {
     const options = { weekday: "long", year: "numeric", month: "long", day: "numeric" }
@@ -38,7 +40,8 @@ const SidebarWithHeader = ({ userInfo, pageTitle, children }) => {
 
   const handleLogout = async () => {
     try {
-      navigate("/")
+      await logout()
+      navigate("/login")
     } catch (error) {
       console.error("Logout failed:", error)
     }

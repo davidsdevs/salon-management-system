@@ -94,13 +94,30 @@ export function AuthProvider({ children }) {
 
   const logout = async () => {
     try {
-      await signOut(auth);
+      console.log("Starting logout process...");
+      console.log("Before logout - user:", !!user, "userProfile:", !!userProfile);
+      
+      // Clear state immediately for better UX
       setUserRole(null);
       setUserProfile(null);
       sessionStorage.removeItem("user");
       localStorage.removeItem("user");
+      
+      console.log("Local state cleared");
+      
+      // Then sign out from Firebase
+      await signOut(auth);
+      
+      console.log("Firebase signOut completed");
+      
+      // Force a small delay to ensure state updates
+      setTimeout(() => {
+        console.log("After logout - user:", !!user, "userProfile:", !!userProfile);
+        console.log("isAuthenticated should be:", !!(user || userProfile));
+      }, 100);
     } catch (error) {
       console.error("Error during logout:", error);
+      // Even if Firebase logout fails, we've already cleared local state
     }
   };
 

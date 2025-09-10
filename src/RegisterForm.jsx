@@ -252,13 +252,9 @@ function RegisterForm() {
   }
 
   return (
-<<<<<<< HEAD
-    <div className="min-h-screen bg-gray-50 py-12 mt-[122px]">
-=======
     <div className="min-h-screen bg-gray-50 py-12 relative">
       {renderReferralModal()}
 
->>>>>>> 63531697bc5f6ed572f201400a1676db2411ab06
       <div className="max-w-4xl mx-auto px-4">
         <div className="text-center mb-12">
           <h1 className="text-4xl font-bold text-[#160B53] mb-4">Register an Account</h1>
