@@ -1,23 +1,47 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { User, Mail, CheckCircle, XCircle, Loader2 } from "lucide-react"
 import { fetchSignInMethodsForEmail } from "firebase/auth"
-import { auth } from "../../../firebase"
+import { auth, db } from "../../../firebase"
+import { collection, query, where, getDocs } from "firebase/firestore"
 
 function PersonalInfoStep({ formData, updateFormData, onNext, onNavigateToLogin }) {
   const [errors, setErrors] = useState({})
   const [emailStatus, setEmailStatus] = useState("idle") // idle, checking, valid, invalid
   const [emailError, setEmailError] = useState("")
+  const lastCheckedEmail = useRef("")
 
-  // Check if email exists safely (without creating temp users)
+  const normalizeEmail = (email) => email.trim().toLowerCase()
+
+  // Firestore email check
+  const checkEmailInFirestore = async (email) => {
+    const usersRef = collection(db, "users") // adjust collection name if different
+    const q = query(usersRef, where("email", "==", email))
+    const snapshot = await getDocs(q)
+    return !snapshot.empty
+  }
+
+  // Firebase Auth email check
+  const checkEmailInAuth = async (email) => {
+    try {
+      const methods = await fetchSignInMethodsForEmail(auth, email)
+      return methods.length > 0
+    } catch (err) {
+      console.error("Firebase Auth check error:", err)
+      return false
+    }
+  }
+
+  // Combined check
   const checkEmailExists = async (email) => {
-    if (!email || email.trim() === "") {
+    const normalized = normalizeEmail(email)
+    if (!normalized) {
       setEmailStatus("idle")
       setEmailError("")
       return
     }
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-    if (!emailRegex.test(email)) {
+    if (!emailRegex.test(normalized)) {
       setEmailStatus("invalid")
       setEmailError("Please enter a valid email address")
       return
@@ -25,53 +49,54 @@ function PersonalInfoStep({ formData, updateFormData, onNext, onNavigateToLogin 
 
     setEmailStatus("checking")
     setEmailError("")
+    lastCheckedEmail.current = normalized
 
     try {
-      const signInMethods = await fetchSignInMethodsForEmail(auth, email)
-      
-      if (signInMethods.length === 0) {
-        setEmailStatus("valid")
-        setEmailError("")
-      } else {
+      // 1. Firestore
+      const firestoreExists = await checkEmailInFirestore(normalized)
+      if (lastCheckedEmail.current !== normalized) return // ignore stale results
+      if (firestoreExists) {
         setEmailStatus("invalid")
         setEmailError("An account with this email already exists")
+        return
       }
-    } catch (error) {
-      console.error("Error checking email:", error)
+
+      // 2. Firebase Auth
+      const authExists = await checkEmailInAuth(normalized)
+      if (lastCheckedEmail.current !== normalized) return
+      if (authExists) {
+        setEmailStatus("invalid")
+        setEmailError("An account with this email already exists")
+        return
+      }
+
+      // If neither exist
+      setEmailStatus("valid")
+      setEmailError("")
+    } catch (err) {
+      console.error("Email check error:", err)
       setEmailStatus("invalid")
       setEmailError("Unable to verify email. Please try again later.")
     }
   }
 
-  // Handle email input changes
-  const handleEmailChange = (e) => {
-    const email = e.target.value
-    updateFormData({ email })
-
-    if (!email.trim()) {
-      setEmailStatus("idle")
-      setEmailError("")
-    } else {
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
-      if (!emailRegex.test(email)) {
-        setEmailStatus("invalid")
-        setEmailError("Please enter a valid email address")
-      }
-    }
-  }
-
   // Debounce email validation
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
+    const timeout = setTimeout(() => {
       if (formData.email) checkEmailExists(formData.email)
     }, 500)
-    return () => clearTimeout(timeoutId)
+    return () => clearTimeout(timeout)
   }, [formData.email])
+
+  const handleEmailChange = (e) => {
+    updateFormData({ email: e.target.value })
+    setEmailStatus("idle")
+    setEmailError("")
+  }
 
   const handleSubmit = (e) => {
     e.preventDefault()
     const newErrors = {}
-
     if (!formData.firstName.trim()) newErrors.firstName = "First name is required"
     if (!formData.lastName.trim()) newErrors.lastName = "Last name is required"
     if (!formData.email.trim()) newErrors.email = "Email is required"
@@ -80,7 +105,6 @@ function PersonalInfoStep({ formData, updateFormData, onNext, onNavigateToLogin 
     if (emailStatus !== "valid") newErrors.email = "Please enter a valid and unique email address"
 
     setErrors(newErrors)
-
     if (Object.keys(newErrors).length === 0) onNext()
   }
 
@@ -132,7 +156,6 @@ function PersonalInfoStep({ formData, updateFormData, onNext, onNavigateToLogin 
                   className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#160B53] focus:border-transparent"
                 />
               </div>
-              {errors.firstName && <p className="text-red-500 text-xs mt-1">{errors.firstName}</p>}
             </div>
 
             <div>
@@ -144,7 +167,6 @@ function PersonalInfoStep({ formData, updateFormData, onNext, onNavigateToLogin 
                 onChange={(e) => updateFormData({ lastName: e.target.value })}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#160B53] focus:border-transparent"
               />
-              {errors.lastName && <p className="text-red-500 text-xs mt-1">{errors.lastName}</p>}
             </div>
           </div>
 
@@ -162,9 +184,6 @@ function PersonalInfoStep({ formData, updateFormData, onNext, onNavigateToLogin 
               {renderEmailStatusIcon()}
             </div>
             {emailError && <p className="text-red-500 text-xs mt-1">{emailError}</p>}
-            {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-            {emailStatus === "checking" && <p className="text-blue-500 text-xs mt-1">Checking email availability...</p>}
-            {emailStatus === "valid" && <p className="text-green-500 text-xs mt-1">Email is available!</p>}
           </div>
 
           <div className="grid grid-cols-2 gap-4">
@@ -176,7 +195,6 @@ function PersonalInfoStep({ formData, updateFormData, onNext, onNavigateToLogin 
                 onChange={(e) => updateFormData({ birthDate: e.target.value })}
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#160B53] focus:border-transparent"
               />
-              {errors.birthDate && <p className="text-red-500 text-xs mt-1">{errors.birthDate}</p>}
             </div>
 
             <div>
@@ -191,7 +209,6 @@ function PersonalInfoStep({ formData, updateFormData, onNext, onNavigateToLogin 
                 <option value="female">Female</option>
                 <option value="other">Other</option>
               </select>
-              {errors.gender && <p className="text-red-500 text-xs mt-1">{errors.gender}</p>}
             </div>
           </div>
 
@@ -207,15 +224,6 @@ function PersonalInfoStep({ formData, updateFormData, onNext, onNavigateToLogin 
             Next
           </button>
         </form>
-
-        <div className="text-center mt-6">
-          <p className="text-gray-600 text-sm">
-            Already have an account?{" "}
-            <button type="button" onClick={onNavigateToLogin} className="text-[#160B53] font-medium hover:underline">
-              Sign in Here
-            </button>
-          </p>
-        </div>
       </div>
     </div>
   )

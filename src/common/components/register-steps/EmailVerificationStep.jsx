@@ -1,34 +1,47 @@
 import { useState, useEffect } from "react"
 import { Mail, Check, RefreshCw, Clock } from "lucide-react"
 import { sendOTPEmail, generateOTP } from "../../../brevo"
+import {
+  createUserWithEmailAndPassword,
+  fetchSignInMethodsForEmail,
+} from "firebase/auth"
+import {
+  collection,
+  query,
+  where,
+  getDocs,
+  doc,
+  setDoc,
+  addDoc,
+  serverTimestamp,
+} from "firebase/firestore"
+import { auth, db } from "../../../firebase"
 
-function EmailVerificationStep({ formData, onNext, onBack, onNavigateToLogin, isLoading }) {
+function EmailVerificationStep({ formData, referralCode, onSuccess, onBack, onNavigateToLogin }) {
   const [verificationSent, setVerificationSent] = useState(false)
   const [otp, setOtp] = useState("")
   const [userOtp, setUserOtp] = useState("")
   const [otpExpiry, setOtpExpiry] = useState(null)
   const [otpError, setOtpError] = useState("")
   const [sendingOtp, setSendingOtp] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
+  // ✅ Send OTP email
   const handleSendVerification = async () => {
     try {
       setSendingOtp(true)
       setOtpError("")
       
-      // Generate new OTP
       const newOtp = generateOTP()
       setOtp(newOtp)
       
-      // Set OTP expiry (10 minutes from now)
       const expiryTime = new Date(Date.now() + 10 * 60 * 1000)
       setOtpExpiry(expiryTime)
       
-      // Send OTP email via Brevo
       await sendOTPEmail(formData.email, newOtp, formData.firstName)
       
-    setVerificationSent(true)
-      setUserOtp("") // Clear previous OTP input
-      
+      setVerificationSent(true)
+      setUserOtp("")
     } catch (error) {
       console.error("Failed to send OTP:", error)
       setOtpError("Failed to send verification email. Please try again.")
@@ -37,73 +50,132 @@ function EmailVerificationStep({ formData, onNext, onBack, onNavigateToLogin, is
     }
   }
 
-  const handleVerifyEmail = async (e) => {
-  if (e && e.preventDefault) e.preventDefault(); // Prevent form reload if any
+  // ✅ Verify OTP + Register
+  const handleVerifyEmail = async () => {
+    // Basic validations
+    const requiredFields = ["firstName", "lastName", "email", "birthDate", "gender", "password", "phoneNumber"]
+    const missingFields = requiredFields.filter((field) => !formData[field])
+    if (missingFields.length > 0) {
+      setOtpError(`Please complete all required fields: ${missingFields.join(", ")}`)
+      return
+    }
+    if (!formData.agreeToTerms) {
+      setOtpError("Please agree to the terms and conditions")
+      return
+    }
 
-  // Validate that all required fields are filled
-  const requiredFields = ['firstName', 'lastName', 'email', 'birthDate', 'gender', 'password', 'phoneNumber'];
-  const missingFields = requiredFields.filter(field => !formData[field]);
+    // OTP validation
+    if (!userOtp || userOtp !== otp) {
+      setOtpError("Invalid verification code. Please try again.")
+      return
+    }
+    if (otpExpiry && new Date() > otpExpiry) {
+      setOtpError("Verification code has expired. Please request a new one.")
+      return
+    }
 
-  if (missingFields.length > 0) {
-    alert(`Please complete all required fields: ${missingFields.join(', ')}`);
-    return;
+    setOtpError("")
+    setIsLoading(true)
+
+    try {
+      // Step 1: Check if email already exists
+      const signInMethods = await fetchSignInMethodsForEmail(auth, formData.email)
+      if (signInMethods.length > 0) {
+        setOtpError("Email already exists. Please use another.")
+        setIsLoading(false)
+        return
+      }
+
+      // Step 2: Create Firebase Auth user
+      const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password)
+      const user = userCredential.user
+
+      // Step 3: Save user to Firestore
+      const userData = {
+        uid: user.uid,
+        email: formData.email.toLowerCase().trim(),
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        phoneNumber: formData.phoneNumber,
+        birthDate: formData.birthDate,
+        gender: formData.gender,
+        profileImage: "",
+        emailVerified: true,
+
+        role: "client",
+        status: "active",
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+
+        clientData: {
+          category: "R",
+          preferences: {
+            receivePromotions: formData.receivePromotions,
+            agreeToTerms: formData.agreeToTerms,
+          },  
+        },
+
+        staffData: null,
+      }
+
+      await setDoc(doc(db, "users", user.uid), userData)
+
+      // Step 4: Handle referral if provided
+if (referralCode) {
+  const referralQuery = query(
+    collection(db, "loyalty"),
+    where("referral_code", "==", referralCode)
+  );
+  const referralSnapshot = await getDocs(referralQuery);
+
+  if (!referralSnapshot.empty) {
+    const refDoc = referralSnapshot.docs[0];
+    const refData = refDoc.data();
+
+    // Remove account_id since it doesn't exist
+    await addDoc(collection(db, "referrals"), {
+      newUserId: user.uid,
+      referralCode,
+      branch_id: refData.branch_id || null, // optional if exists
+      timestamp: serverTimestamp(),
+    });
+
+    
+    await setDoc(
+      doc(db, "loyalty", refDoc.id),
+      { points: (refData.points || 0) + 300 },
+      { merge: true }
+    );
   }
+}
 
-  if (!formData.agreeToTerms) {
-    alert("Please agree to the terms and conditions");
-    return;
+      // Step 5: Move to Welcome step
+      onSuccess()
+    } catch (err) {
+      console.error("Registration error:", err)
+      setOtpError("Something went wrong. Please try again.")
+    } finally {
+      setIsLoading(false)
+    }
   }
-
-  // Validate OTP
-  if (!userOtp) {
-    setOtpError("Invalid verification code. Please try again.");
-    return;
-  }
-
-  if (userOtp !== otp) {
-    setOtpError("Invalid verification code. Please try again.");
-    return;
-  }
-
-  // Check if OTP has expired
-  if (otpExpiry && new Date() > otpExpiry) {
-    setOtpError("Verification code has expired. Please request a new one.");
-    return;
-  }
-
-  setOtpError("");
-
-  try {
-    await onNext(); // Ensure async registration completes before moving to step 5
-  } catch (err) {
-    console.error("Error during registration:", err);
-    setOtpError("Registration failed. Please try again.");
-  }
-};
 
   // Countdown timer for OTP expiry
   const [timeLeft, setTimeLeft] = useState(0)
-  
   useEffect(() => {
     if (!otpExpiry) return
-    
     const timer = setInterval(() => {
       const now = new Date()
       const diff = Math.max(0, Math.floor((otpExpiry - now) / 1000))
       setTimeLeft(diff)
-      
-      if (diff === 0) {
-        clearInterval(timer)
-      }
+      if (diff === 0) clearInterval(timer)
     }, 1000)
-    
     return () => clearInterval(timer)
   }, [otpExpiry])
-  
+
   const formatTime = (seconds) => {
     const mins = Math.floor(seconds / 60)
     const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
+    return `${mins}:${secs.toString().padStart(2, "0")}`
   }
 
   return (
@@ -122,31 +194,25 @@ function EmailVerificationStep({ formData, onNext, onBack, onNavigateToLogin, is
           <div>
             <h3 className="text-xl font-semibold text-[#160B53] mb-2">Verify Your Email</h3>
             <p className="text-gray-600 mb-2">
-               We'll send a verification code to <strong>{formData.email}</strong>
-             </p>
-             <p className="text-sm text-gray-500 mb-4">
-               Enter the 6-digit code below to complete your registration.
-             </p>
-             <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-               <p className="text-blue-700 text-sm">
-                 <strong>Note:</strong> The verification code will be sent to your email. 
-                 Check your spam folder if you don't see it in your inbox.
-               </p>
-             </div>
+              We'll send a verification code to <strong>{formData.email}</strong>
+            </p>
+            <p className="text-sm text-gray-500 mb-4">Enter the 6-digit code below to complete your registration.</p>
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
+              <p className="text-blue-700 text-sm">
+                <strong>Note:</strong> The verification code will be sent to your email. Check your spam folder if you
+                don't see it in your inbox.
+              </p>
+            </div>
           </div>
 
           {!verificationSent ? (
-            <div className="space-y-3">
             <button
               onClick={handleSendVerification}
-                disabled={sendingOtp}
-                className="w-full bg-[#160B53] text-white py-3 px-4 rounded-lg font-medium hover:bg-[#2d1b69] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={sendingOtp}
+              className="w-full bg-[#160B53] text-white py-3 px-4 rounded-lg font-medium hover:bg-[#2d1b69] transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-                {sendingOtp ? "Sending..." : "Send Verification Code"}
+              {sendingOtp ? "Sending..." : "Send Verification Code"}
             </button>
-              
-
-            </div>
           ) : (
             <div className="space-y-4">
               <div className="bg-green-50 border border-green-200 rounded-lg p-4">
@@ -155,8 +221,7 @@ function EmailVerificationStep({ formData, onNext, onBack, onNavigateToLogin, is
                   Verification code sent successfully!
                 </p>
               </div>
-              
-              {/* OTP Input */}
+
               <div className="space-y-3">
                 <label className="block text-sm font-medium text-gray-700 text-center">
                   Enter the 6-digit code sent to your email
@@ -169,20 +234,16 @@ function EmailVerificationStep({ formData, onNext, onBack, onNavigateToLogin, is
                   maxLength={6}
                   className="w-full px-4 py-3 border border-gray-300 rounded-lg text-center text-lg font-mono tracking-widest focus:ring-2 focus:ring-[#160B53] focus:border-transparent"
                 />
-                {otpError && (
-                  <p className="text-red-600 text-sm text-center">{otpError}</p>
-                )}
+                {otpError && <p className="text-red-600 text-sm text-center">{otpError}</p>}
               </div>
-              
-              {/* Countdown Timer */}
+
               {otpExpiry && timeLeft > 0 && (
                 <div className="flex items-center justify-center text-sm text-gray-600">
                   <Clock className="h-4 w-4 mr-2" />
                   Code expires in: {formatTime(timeLeft)}
                 </div>
               )}
-              
-              {/* Resend Option */}
+
               <div className="text-center">
                 <p className="text-sm text-gray-600 mb-3">Didn't receive the code?</p>
                 <button
@@ -194,6 +255,7 @@ function EmailVerificationStep({ formData, onNext, onBack, onNavigateToLogin, is
                   {timeLeft > 0 ? `Resend in ${formatTime(timeLeft)}` : "Resend Code"}
                 </button>
               </div>
+
               <button
                 onClick={handleVerifyEmail}
                 disabled={isLoading}
