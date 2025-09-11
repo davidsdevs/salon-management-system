@@ -68,7 +68,7 @@ const LoginForm = () => {
         "branch-admin": "/branchadmin-dashboard",
         "operational-manager": "/operational-dashboard",
         stylist: "/stylist-dashboard",
-        "super-admin": "/systemadmin-dashboard",
+        "super-admin": "/super-admin-dashboard",
         staff: "/staff-dashboard", // fallback
       };
 

@@ -1,21 +1,12 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  createUserWithEmailAndPassword,
-  fetchSignInMethodsForEmail,
-  sendEmailVerification,
-} from "firebase/auth";
-import {
   collection,
   query,
   where,
   getDocs,
-  doc,
-  setDoc,
-  addDoc,
-  serverTimestamp,
 } from "firebase/firestore";
-import { auth, db } from "./firebase";
+import { db } from "./firebase";
 
 // Step components
 import PersonalInfoStep from "./common/components/register-steps/PersonalInfoStep";
@@ -33,7 +24,6 @@ function RegisterForm() {
     return savedStep ? Number(savedStep) : 1;
   });
 
-  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [referralModalOpen, setReferralModalOpen] = useState(true);
@@ -52,7 +42,7 @@ function RegisterForm() {
     phoneNumber: "",
     receivePromotions: false,
     agreeToTerms: false,
-    referralCode: "", // ✅ Store referral here
+    referralCode: "",
   });
 
   const totalSteps = 5;
@@ -105,116 +95,10 @@ function RegisterForm() {
         setReferralError("Something went wrong. Please try again later.");
         setReferralValid(false);
       }
-    }, 500); // debounce 500ms
+    }, 500);
 
     return () => clearTimeout(timer);
   }, [referralInput]);
-
-  // ✅ Registration logic
-  const handleRegistration = async () => {
-    setIsLoading(true);
-    setError("");
-    setSuccess("");
-
-    try {
-      // ✅ Check if email is already registered
-      const signInMethods = await fetchSignInMethodsForEmail(auth, formData.email);
-      if (signInMethods.length > 0) {
-        setError(
-          "An account with this email already exists. Please use a different email address."
-        );
-        setIsLoading(false);
-        return;
-      }
-
-      // ✅ Create user in Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        formData.email,
-        formData.password
-      );
-      const user = userCredential.user;
-
-      // ✅ Save client schema into Firestore
-      const userData = {
-        uid: user.uid,
-        email: formData.email.toLowerCase().trim(),
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        phoneNumber: formData.phoneNumber,
-        birthDate: formData.birthDate,
-        gender: formData.gender,
-        profileImage: "",
-        emailVerified: false,
-
-        // 🔹 Account metadata
-        role: "client",
-        status: "active",
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-
-        // 🔹 Client-specific fields
-        clientData: {
-          category: "R", // Default category for new clients (Regular)
-          preferences: {
-            receivePromotions: formData.receivePromotions,
-            agreeToTerms: formData.agreeToTerms,
-          },
-        },
-
-        // 🔹 Staff data not applicable
-        staffData: null,
-      };
-
-      await setDoc(doc(db, "users", user.uid), userData);
-
-      // ✅ Handle referral if entered
-      if (formData.referralCode) {
-        const referralQuery = query(
-          collection(db, "loyalty"),
-          where("referral_code", "==", formData.referralCode)
-        );
-        const referralSnapshot = await getDocs(referralQuery);
-
-        if (!referralSnapshot.empty) {
-          const refDoc = referralSnapshot.docs[0];
-          const refData = refDoc.data();
-
-          // a) Save referral record (auto-ID)
-          await addDoc(collection(db, "referrals"), {
-            newUserId: user.uid,
-            referralCode: formData.referralCode,
-            account_id: refData.account_id,
-            branch_id: refData.branch_id,
-            timestamp: serverTimestamp(),
-          });
-
-          // b) Increment loyalty points
-          await setDoc(
-            doc(db, "loyalty", refDoc.id),
-            { points: (refData.points || 0) + 300 },
-            { merge: true }
-          );
-        }
-      }
-
-      // ✅ Send verification email
-      await sendEmailVerification(user);
-
-      setSuccess(
-        "Account created successfully! Please check your email for verification."
-      );
-
-      // ✅ Move to welcome step
-      setCurrentStep(5);
-      sessionStorage.setItem("registerStep", 5);
-    } catch (error) {
-      console.error("Registration error:", error.message);
-      setError(error.message || "Registration failed. Please try again.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // Cleanup on unmount
   useEffect(() => {
@@ -227,7 +111,6 @@ function RegisterForm() {
     return (
       <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
         <div className="bg-white p-8 rounded-2xl shadow-xl w-96 flex flex-col items-center">
-          {/* Logo */}
           <img src="/logo.png" alt="Salon Logo" className="h-16 w-auto mb-4" />
 
           <h2 className="text-xl font-bold text-[#160B53] text-center mb-4">
@@ -245,7 +128,6 @@ function RegisterForm() {
             className="w-full border rounded-lg p-2 mb-2 focus:outline-none focus:ring-2 focus:ring-[#160B53]"
           />
 
-          {/* Error / Success messages */}
           {referralError && (
             <p className="text-red-500 text-sm mb-2">{referralError}</p>
           )}
@@ -341,10 +223,12 @@ function RegisterForm() {
         {currentStep === 4 && (
           <EmailVerificationStep
             formData={formData}
-            onNext={handleRegistration}
+            referralCode={formData.referralCode}
+            onSuccess={() => {
+              setCurrentStep(5);
+              sessionStorage.setItem("registerStep", 5);
+            }}
             onBack={prevStep}
-            onNavigateToLogin={() => navigate("/")}
-            isLoading={isLoading}
           />
         )}
         {currentStep === 5 && (
