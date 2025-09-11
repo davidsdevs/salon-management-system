@@ -120,14 +120,14 @@ const LoginForm = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 mt-[122px]">
+    <div className="flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 mt-[122px]">
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <h2 className="text-4xl font-bold text-[#160B53] mb-2 font-poppins">Welcome Back</h2>
           <p className="text-gray-600 font-poppins">Sign in to your David's Salon account</p>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg p-8 border border-gray-100">
+        <div className="bg-white rounded-2xl p-8" style={{ border: '1px solid #DBDBDB', boxShadow: '0 2px 15px 0 rgba(0, 0, 0, 0.25)' }}>
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
               <p className="text-red-700 text-sm font-medium">{error}</p>

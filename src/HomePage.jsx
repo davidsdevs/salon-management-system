@@ -8,6 +8,8 @@ import { useState, useEffect } from "react"
 export default function HomePage() {
   const [searchTerm, setSearchTerm] = useState("")
   const [isVisible, setIsVisible] = useState(false)
+  const [currentPage, setCurrentPage] = useState(1)
+  const branchesPerPage = 6
 
   // Fade in animation on component mount
   useEffect(() => {
@@ -57,6 +59,13 @@ export default function HomePage() {
       phone: "+63 930 222 9699",
       image: "/modern-salon-interior.png",
     },
+    {
+      name: "Waltermart Subic",
+      slug: "waltermart-subic",
+      location: "Subic Bay, Zambales",
+      phone: "+63 930 222 9699",
+      image: "/modern-salon-interior.png",
+    },
   ]
 
   const testimonials = [
@@ -85,6 +94,16 @@ export default function HomePage() {
     branch.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     branch.location.toLowerCase().includes(searchTerm.toLowerCase())
   )
+
+  // Pagination logic
+  const totalPages = Math.ceil(filteredBranches.length / branchesPerPage)
+  const startIndex = (currentPage - 1) * branchesPerPage
+  const endIndex = startIndex + branchesPerPage
+  const currentBranches = filteredBranches.slice(startIndex, endIndex)
+
+  const handlePageChange = (page) => {
+    setCurrentPage(page)
+  }
 
   return (
     <>
@@ -139,6 +158,94 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Promotion Marketing Section */}
+      <section className="py-16 px-2 sm:px-4 bg-gray-50">
+        <div className="max-w-6xl mx-auto">
+          <h2 className="font-bold text-center text-[#160B53] mb-4" style={{ fontSize: '50px' }}>Special New Year Promotions!</h2>
+          <p className="text-center text-gray-600 mb-12">Start 2025 with a fresh new look! Limited time offers across all our branches.</p>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {/* Promotion Card 1 */}
+            <Card 
+              className="p-6 border-0 overflow-hidden" 
+              style={{ 
+                borderColor: '#B5B5B5',
+                boxShadow: '0 2px 15px 0 rgba(0, 0, 0, 0.25)'
+              }}
+            >
+              <CardContent className="p-0 text-center">
+                <div className="bg-red-500 text-white text-sm font-bold px-3 py-1 rounded-full mb-4 inline-block">
+                  50% OFF
+                </div>
+                <h3 className="text-2xl font-bold text-[#160B53] mb-3">Hair Coloring</h3>
+                <p className="text-gray-600 mb-4 leading-relaxed">
+                  Transform your look with our premium hair coloring services. 
+                  Professional stylists, premium products.
+                </p>
+                <div className="text-sm text-gray-500 mb-4">
+                  Valid until March 31, 2025
+                </div>
+                <Button className="w-full text-white bg-[#160B53] hover:bg-[#160B53]/90">
+                  Book Now
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Promotion Card 2 */}
+            <Card 
+              className="p-6 border-0 overflow-hidden" 
+              style={{ 
+                borderColor: '#B5B5B5',
+                boxShadow: '0 2px 15px 0 rgba(0, 0, 0, 0.25)'
+              }}
+            >
+              <CardContent className="p-0 text-center">
+                <div className="bg-green-500 text-white text-sm font-bold px-3 py-1 rounded-full mb-4 inline-block">
+                  FREE
+                </div>
+                <h3 className="text-2xl font-bold text-[#160B53] mb-3">Hair Treatment</h3>
+                <p className="text-gray-600 mb-4 leading-relaxed">
+                  Get a complimentary hair treatment with any haircut service. 
+                  Nourish and protect your hair.
+                </p>
+                <div className="text-sm text-gray-500 mb-4">
+                  With any haircut purchase
+                </div>
+                <Button className="w-full text-white bg-[#160B53] hover:bg-[#160B53]/90">
+                  Learn More
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Promotion Card 3 */}
+            <Card 
+              className="p-6 border-0 overflow-hidden" 
+              style={{ 
+                borderColor: '#B5B5B5',
+                boxShadow: '0 2px 15px 0 rgba(0, 0, 0, 0.25)'
+              }}
+            >
+              <CardContent className="p-0 text-center">
+                <div className="bg-blue-500 text-white text-sm font-bold px-3 py-1 rounded-full mb-4 inline-block">
+                  BUY 2 GET 1
+                </div>
+                <h3 className="text-2xl font-bold text-[#160B53] mb-3">Styling Products</h3>
+                <p className="text-gray-600 mb-4 leading-relaxed">
+                  Professional hair styling products from top brands. 
+                  Buy 2 get 1 free on selected items.
+                </p>
+                <div className="text-sm text-gray-500 mb-4">
+                  While supplies last
+                </div>
+                <Button className="w-full text-white bg-[#160B53] hover:bg-[#160B53]/90">
+                  Shop Now
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </section>
+
       {/* Choose Your Branch Section */}
       <section id="branches" className="py-16 px-2 sm:px-4">
         <div className="max-w-7xl mx-auto">
@@ -149,7 +256,10 @@ export default function HomePage() {
               <SearchInput
                 placeholder="Search branch or location..."
                 value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                onChange={(e) => {
+                  setSearchTerm(e.target.value)
+                  setCurrentPage(1) // Reset to first page when searching
+                }}
               />
             </div>
           </div>
@@ -164,7 +274,7 @@ export default function HomePage() {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredBranches.map((branch, index) => (
+            {currentBranches.map((branch, index) => (
               <Card 
                 key={index} 
                 className="overflow-hidden p-0 border-0"
@@ -212,29 +322,48 @@ export default function HomePage() {
           </div>
 
           {/* Pagination */}
-          <div className="flex justify-center mt-8 space-x-2">
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-8 h-8 p-0 bg-[#160B53] text-white border-[#160B53] transition-all duration-300 hover:scale-110"
-            >
-              1
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-8 h-8 p-0 bg-transparent text-gray-700 border-gray-300 hover:bg-gray-50 transition-all duration-300 hover:scale-110 hover:border-[#160B53]/50"
-            >
-              2
-            </Button>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              className="w-8 h-8 p-0 bg-transparent text-gray-700 border-gray-300 hover:bg-gray-50 transition-all duration-300 hover:scale-110 hover:border-[#160B53]/50"
-            >
-              {">"}
-            </Button>
-          </div>
+          {totalPages > 1 && (
+            <div className="flex justify-center mt-8 space-x-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-8 h-8 p-0 bg-transparent text-gray-700 border-gray-300 hover:bg-gray-50 transition-all duration-300 hover:scale-110 hover:border-[#160B53]/50"
+                onClick={() => handlePageChange(currentPage - 1)}
+                disabled={currentPage === 1}
+              >
+                {"<"}
+              </Button>
+              
+              {[...Array(totalPages)].map((_, index) => {
+                const page = index + 1
+                return (
+                  <Button 
+                    key={page}
+                    variant="outline" 
+                    size="sm" 
+                    className={`w-8 h-8 p-0 transition-all duration-300 hover:scale-110 ${
+                      currentPage === page
+                        ? 'bg-[#160B53] text-white border-[#160B53]'
+                        : 'bg-transparent text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-[#160B53]/50'
+                    }`}
+                    onClick={() => handlePageChange(page)}
+                  >
+                    {page}
+                  </Button>
+                )
+              })}
+              
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-8 h-8 p-0 bg-transparent text-gray-700 border-gray-300 hover:bg-gray-50 transition-all duration-300 hover:scale-110 hover:border-[#160B53]/50"
+                onClick={() => handlePageChange(currentPage + 1)}
+                disabled={currentPage === totalPages}
+              >
+                {">"}
+              </Button>
+            </div>
+          )}
 
           {filteredBranches.length === 0 && searchTerm && (
             <div className="text-center py-12">

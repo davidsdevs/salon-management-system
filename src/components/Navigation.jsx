@@ -1,13 +1,34 @@
 import { Button } from "./ui/button"
 import { Link, useLocation, useNavigate } from "react-router-dom"
+import { useState, useEffect } from "react"
 
 export default function Navigation() {
   const location = useLocation()
   const navigate = useNavigate()
+  const [isBranchActive, setIsBranchActive] = useState(false)
 
   const isActive = (path) => {
     return location.pathname === path
   }
+
+  // Check if branches section is in view
+  useEffect(() => {
+    const handleScroll = () => {
+      const branchesSection = document.getElementById('branches')
+      if (branchesSection && location.pathname === '/') {
+        const rect = branchesSection.getBoundingClientRect()
+        const isInView = rect.top <= 100 && rect.bottom >= 100
+        setIsBranchActive(isInView)
+      } else {
+        setIsBranchActive(false)
+      }
+    }
+
+    window.addEventListener('scroll', handleScroll)
+    handleScroll() // Check initial state
+
+    return () => window.removeEventListener('scroll', handleScroll)
+  }, [location.pathname])
 
   const handleBranchClick = (e) => {
     e.preventDefault()
@@ -80,7 +101,11 @@ export default function Navigation() {
           <a 
             href="#branches" 
             onClick={handleBranchClick}
-            className="text-gray-700 hover:text-[#160B53] font-poppins font-medium text-base cursor-pointer"
+            className={`font-poppins font-medium text-base cursor-pointer ${
+              isBranchActive 
+                ? 'text-[#160B53] border-b-2 border-[#160B53] pb-1' 
+                : 'text-gray-700 hover:text-[#160B53]'
+            }`}
           >
             BRANCH
           </a>

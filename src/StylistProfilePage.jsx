@@ -171,9 +171,6 @@ export default function StylistProfilePage() {
                   <ArrowLeft className="w-4 h-4" />
                   Back
                 </Link>
-                <Button size="lg" className="bg-white text-[#160B53] hover:bg-gray-100 font-poppins font-semibold">
-                  Book with Maria
-                </Button>
               </div>
             </div>
           </div>
@@ -360,4 +357,5 @@ export default function StylistProfilePage() {
     </BranchLayout>
   )
 }
+
 

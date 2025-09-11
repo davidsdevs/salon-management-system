@@ -20,7 +20,7 @@ function ContactPreferencesStep({ formData, updateFormData, onNext, onBack, onNa
 
   return (
     <div className="max-w-md mx-auto">
-      <div className="bg-white rounded-lg shadow-lg p-8">
+      <div className="bg-white rounded-lg p-8" style={{ border: '1px solid #DBDBDB', boxShadow: '0 2px 15px 0 rgba(0, 0, 0, 0.25)' }}>
         <div className="text-center mb-6">
           <h2 className="text-2xl font-semibold text-[#160B53] mb-2">Contact & Preferences</h2>
           <p className="text-gray-600">Please fill in the required information</p>

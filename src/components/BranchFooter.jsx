@@ -67,7 +67,7 @@ export default function BranchFooter({ branchName, branchPhone, branchAddress, b
         </div>
 
         <div className="mt-8 pt-8 text-center text-base text-gray-500" style={{ borderTop: '1px solid #D4D4D4' }}>
-          © 2024 David's Salon - {branchName}. All Rights Reserved.
+          © 2025 David's Salon - {branchName}. All Rights Reserved.
         </div>
       </div>
     </footer>

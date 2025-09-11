@@ -243,39 +243,45 @@ export default function BranchGalleryPage() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex justify-center items-center gap-2 mt-12">
-              <button
+            <div className="flex justify-center mt-8 space-x-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-8 h-8 p-0 bg-transparent text-gray-700 border-gray-300 hover:bg-gray-50 transition-all duration-300 hover:scale-110 hover:border-[#160B53]/50"
                 onClick={() => handlePageChange(currentPage - 1)}
                 disabled={currentPage === 1}
-                className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
+                {"<"}
+              </Button>
               
               {[...Array(totalPages)].map((_, index) => {
                 const page = index + 1
                 return (
-                  <button
+                  <Button 
                     key={page}
-                    onClick={() => handlePageChange(page)}
-                    className={`w-10 h-10 rounded-lg font-poppins font-medium transition-all duration-300 ${
+                    variant="outline" 
+                    size="sm" 
+                    className={`w-8 h-8 p-0 transition-all duration-300 hover:scale-110 ${
                       currentPage === page
-                        ? 'bg-[#160B53] text-white scale-105'
-                        : 'bg-transparent text-gray-700 border border-gray-300 hover:bg-gray-50 hover:scale-105'
+                        ? 'bg-[#160B53] text-white border-[#160B53]'
+                        : 'bg-transparent text-gray-700 border-gray-300 hover:bg-gray-50 hover:border-[#160B53]/50'
                     }`}
+                    onClick={() => handlePageChange(page)}
                   >
                     {page}
-                  </button>
+                  </Button>
                 )
               })}
               
-              <button
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="w-8 h-8 p-0 bg-transparent text-gray-700 border-gray-300 hover:bg-gray-50 transition-all duration-300 hover:scale-110 hover:border-[#160B53]/50"
                 onClick={() => handlePageChange(currentPage + 1)}
                 disabled={currentPage === totalPages}
-                className="p-2 rounded-lg border border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
               >
-                <ChevronRight className="w-4 h-4" />
-              </button>
+                {">"}
+              </Button>
             </div>
           )}
         </div>
@@ -396,4 +402,5 @@ export default function BranchGalleryPage() {
     </>
   )
 }
+
 

@@ -3,7 +3,7 @@ import { Check } from "lucide-react"
 function WelcomeStep({ onNavigateToLogin }) {
   return (
     <div className="max-w-md mx-auto">
-      <div className="bg-white rounded-lg shadow-lg p-8">
+      <div className="bg-white rounded-lg p-8" style={{ border: '1px solid #DBDBDB', boxShadow: '0 2px 15px 0 rgba(0, 0, 0, 0.25)' }}>
         <div className="text-center space-y-6">
           <div>
             <h2 className="text-2xl font-semibold text-[#160B53] mb-4">Welcome!</h2>

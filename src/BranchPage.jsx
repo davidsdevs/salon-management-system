@@ -247,11 +247,7 @@ export default function BranchPage() {
                 <div className="p-6 text-center">
                   <h3 className="text-xl font-bold text-[#160B53] mb-1">{stylist.name}</h3>
                   <p className="text-gray-600 text-sm mb-2">{stylist.specialty}</p>
-                  <p className="text-gray-500 text-xs mb-3">{stylist.experience} experience</p>
-                  <div className="flex items-center justify-center mb-4">
-                    <Star className="w-4 h-4 fill-yellow-400 text-yellow-400 mr-1" />
-                    <span className="text-sm font-semibold">{stylist.rating}</span>
-                  </div>
+                  <p className="text-gray-500 text-xs mb-4">{stylist.experience} experience</p>
                   <Button
                     size="sm"
                     variant="outline"
@@ -394,4 +390,5 @@ export default function BranchPage() {
     </div>
   )
 }
+
 

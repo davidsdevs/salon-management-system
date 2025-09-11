@@ -56,7 +56,11 @@ export default function BranchNavigation({ branchName = "Makati Branch" }) {
         <div className="hidden md:flex items-center" style={{ gap: '50px' }}>
           <Link 
             to={`/branch/${branchSlug}`}
-            className="text-gray-700 hover:text-[#160B53] font-poppins font-medium text-base"
+            className={`font-poppins font-medium text-base ${
+              location.pathname === `/branch/${branchSlug}`
+                ? 'text-[#160B53] border-b-2 border-[#160B53] pb-1' 
+                : 'text-gray-700 hover:text-[#160B53]'
+            }`}
           >
             HOME
           </Link>

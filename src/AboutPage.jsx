@@ -110,7 +110,7 @@ export default function AboutPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="order-2 lg:order-1">
               <h3 className="text-3xl font-bold text-[#160B53] mb-4">David Charlton</h3>
-              <p className="text-lg text-gray-600 mb-4">Founder and CEO</p>
+              <p className="text-lg text-gray-600 mb-4">Founder</p>
 
               <div className="space-y-4 text-gray-700 leading-relaxed">
                 <p className="text-justify">
@@ -230,19 +230,19 @@ export default function AboutPage() {
             <div>
               <img
                 src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/DC%201%20%281%29-naiRFHoiiPP970mA8FxdHoiQjnpvAz.png"
-                alt="Laura Charlton"
+                alt="Laura Charlton, CEO and President"
                 className="w-full max-w-md mx-auto rounded-lg shadow-lg"
               />
             </div>
 
             <div>
               <h3 className="text-3xl font-bold text-[#160B53] mb-4">Laura Charlton</h3>
-              <p className="text-lg text-gray-600 mb-4">Chief Operations Officer</p>
+              <p className="text-lg text-gray-600 mb-4">CEO and President</p>
 
               <div className="space-y-4 text-gray-700 leading-relaxed">
                 <p className="text-justify">
-                  Laura Charlton brings over two decades of operational excellence to David's Salon. As Chief Operations
-                  Officer, she oversees the day-to-day operations of all branches, ensuring consistent quality and
+                  Laura Charlton brings over two decades of operational excellence to David's Salon. As CEO and President,
+                  she oversees the day-to-day operations of all branches, ensuring consistent quality and
                   service standards across the entire network.
                 </p>
 

@@ -13,7 +13,6 @@ export default function BranchServicesPage() {
   
   const [selectedCategory, setSelectedCategory] = useState("All")
   const [isVisible, setIsVisible] = useState(false)
-  const [hoveredService, setHoveredService] = useState(null)
 
   useEffect(() => {
     setIsVisible(true)
@@ -132,23 +131,15 @@ export default function BranchServicesPage() {
             {filteredServices.map((service, index) => (
               <Card 
                 key={service.id}
-                className={`overflow-hidden transition-all duration-300 cursor-pointer transform border-0 p-0 ${
-                  hoveredService === service.id 
-                    ? 'scale-105 ring-2 ring-[#160B53]/20' 
-                    : ''
-                }`}
+                className="overflow-hidden border-0 p-0"
                 style={{ boxShadow: '0 2px 15px 0 rgba(0, 0, 0, 0.25)' }}
-                onMouseEnter={() => setHoveredService(service.id)}
-                onMouseLeave={() => setHoveredService(null)}
               >
                 {/* Service Image */}
                 <div className="relative h-48 bg-gray-100 overflow-hidden">
                   <img
                     src={service.image}
                     alt={service.name}
-                    className={`w-full h-full object-cover transition-transform duration-300 ${
-                      hoveredService === service.id ? 'scale-110' : 'scale-100'
-                    }`}
+                    className="w-full h-full object-cover"
                   />
                   {/* Service Tag */}
                   {service.tag && (
@@ -163,9 +154,7 @@ export default function BranchServicesPage() {
                 </div>
 
                 <div className="p-6">
-                  <h3 className={`text-xl font-poppins font-bold mb-2 transition-colors duration-300 ${
-                    hoveredService === service.id ? 'text-[#160B53]' : 'text-gray-900'
-                  }`}>
+                  <h3 className="text-xl font-poppins font-bold mb-2 text-gray-900">
                     {service.name}
                   </h3>
                   
@@ -189,18 +178,14 @@ export default function BranchServicesPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className={`w-full border-gray-300 text-gray-700 hover:bg-gray-50 transition-all duration-300 ${
-                          hoveredService === service.id ? 'scale-105' : 'scale-100'
-                        }`}
+                        className="w-full border-gray-300 text-gray-700 hover:bg-gray-50"
                       >
                         View Service Details
                       </Button>
                     </Link>
                     <Button
                       size="sm"
-                      className={`w-full bg-[#160B53] hover:bg-[#160B53]/90 text-white transition-all duration-300 ${
-                        hoveredService === service.id ? 'scale-105' : 'scale-100'
-                      }`}
+                      className="w-full bg-[#160B53] hover:bg-[#160B53]/90 text-white"
                     >
                       Book This Service
                     </Button>
@@ -247,4 +232,3 @@ export default function BranchServicesPage() {
     </>
   )
 }
-
