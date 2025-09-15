@@ -14,6 +14,7 @@ export function AuthProvider({ children }) {
   const [user, authLoading] = useAuthState(auth);
   const [userRole, setUserRole] = useState(null);
   const [userProfile, setUserProfile] = useState(null);
+  const [branchInfo, setBranchInfo] = useState(null);
   const [profileLoading, setProfileLoading] = useState(false);
 
   // 🔹 Load from localStorage or sessionStorage first
@@ -21,10 +22,16 @@ export function AuthProvider({ children }) {
     const storedUser =
       JSON.parse(localStorage.getItem("user")) ||
       JSON.parse(sessionStorage.getItem("user"));
+    const storedBranch = 
+      JSON.parse(localStorage.getItem("branchInfo")) ||
+      JSON.parse(sessionStorage.getItem("branchInfo"));
 
     if (storedUser) {
       setUserProfile(storedUser);
       setUserRole(storedUser.role || "client");
+    }
+    if (storedBranch) {
+      setBranchInfo(storedBranch);
     }
   }, []);
 
@@ -41,6 +48,31 @@ export function AuthProvider({ children }) {
             const data = { uid: user.uid, email: user.email, ...userDoc.data() };
             setUserProfile(data);
             setUserRole(data.role || "client");
+
+            // Fetch branch information for staff users
+            if (data.staffData?.branchId) {
+              try {
+                const branchDoc = await getDoc(doc(db, "branches", data.staffData.branchId));
+                if (branchDoc.exists()) {
+                  const branchData = { id: branchDoc.id, ...branchDoc.data() };
+                  setBranchInfo(branchData);
+                  
+                  // Store branch info in same storage as user
+                  if (localStorage.getItem("user")) {
+                    localStorage.setItem("branchInfo", JSON.stringify(branchData));
+                  } else {
+                    sessionStorage.setItem("branchInfo", JSON.stringify(branchData));
+                  }
+                }
+              } catch (branchError) {
+                console.error("Error fetching branch info:", branchError);
+              }
+            } else {
+              // Clear branch info for non-staff users
+              setBranchInfo(null);
+              localStorage.removeItem("branchInfo");
+              sessionStorage.removeItem("branchInfo");
+            }
 
             // overwrite storage (respect Remember Me)
             if (localStorage.getItem("user")) {
@@ -76,6 +108,30 @@ export function AuthProvider({ children }) {
           setUserProfile(data);
           setUserRole(data.role || "client");
 
+          // Fetch branch information for staff users
+          if (data.staffData?.branchId) {
+            try {
+              const branchDoc = await getDoc(doc(db, "branches", data.staffData.branchId));
+              if (branchDoc.exists()) {
+                const branchData = { id: branchDoc.id, ...branchDoc.data() };
+                setBranchInfo(branchData);
+                
+                // Store branch info in same storage as user
+                if (localStorage.getItem("user")) {
+                  localStorage.setItem("branchInfo", JSON.stringify(branchData));
+                } else {
+                  sessionStorage.setItem("branchInfo", JSON.stringify(branchData));
+                }
+              }
+            } catch (branchError) {
+              console.error("Error fetching branch info:", branchError);
+            }
+          } else {
+            setBranchInfo(null);
+            localStorage.removeItem("branchInfo");
+            sessionStorage.removeItem("branchInfo");
+          }
+
           // update whichever storage is in use
           if (localStorage.getItem("user")) {
             localStorage.setItem("user", JSON.stringify(data));
@@ -100,8 +156,11 @@ export function AuthProvider({ children }) {
       // Clear state immediately for better UX
       setUserRole(null);
       setUserProfile(null);
+      setBranchInfo(null);
       sessionStorage.removeItem("user");
       localStorage.removeItem("user");
+      sessionStorage.removeItem("branchInfo");
+      localStorage.removeItem("branchInfo");
       
       console.log("Local state cleared");
       
@@ -125,6 +184,7 @@ export function AuthProvider({ children }) {
     user,
     userRole,
     userProfile,
+    branchInfo,
     loading: authLoading,
     isAuthenticated: !!(user || userProfile), // ✅ check also from storage
     isClient: userRole === "client",

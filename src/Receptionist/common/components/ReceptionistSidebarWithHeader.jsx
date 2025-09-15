@@ -17,7 +17,7 @@ const ReceptionistSidebarWithHeader = ({ userInfo, pageTitle, children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeItem, setActiveItem] = useState("Dashboard")
   const navigate = useNavigate()
-  const { logout } = useAuth()
+  const { logout, branchInfo } = useAuth()
 
   const getCurrentDate = () => {
     const options = {
@@ -77,6 +77,15 @@ const ReceptionistSidebarWithHeader = ({ userInfo, pageTitle, children }) => {
               <img src="/logo.png" alt="David's Salon" className="h-8 w-auto" />
             </div>
 
+            {/* Branch Info */}
+            {branchInfo && (
+              <div className="mb-6">
+                <div className="w-full px-4 py-3 border border-[#160B53] rounded-lg text-center">
+                  <p className="text-[#160B53] font-medium text-sm">{branchInfo.name}</p>
+                </div>
+              </div>
+            )}
+
             {/* User Profile */}
             <div className="flex items-center space-x-3">
               <div className="w-12 h-12 rounded-full bg-gray-300 overflow-hidden">
@@ -88,12 +97,7 @@ const ReceptionistSidebarWithHeader = ({ userInfo, pageTitle, children }) => {
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900">{userInfo.name}</h3>
-                <p className="text-sm text-gray-500">{userInfo.subtitle}</p>
-                {userInfo.badge && (
-                  <span className="inline-block px-2 py-1 text-xs font-medium text-white bg-[#160B53] rounded-full mt-1">
-                    {userInfo.badge}
-                  </span>
-                )}
+                <p className="text-sm text-gray-500">{userInfo.badge}</p>
               </div>
             </div>
           </div>
