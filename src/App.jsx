@@ -49,6 +49,8 @@ import SuperAdminDashboard from "./SystemAdmin/SuperAdminDashboard";
 import InventoryDashboard from "./InventoryController/InventoryDashboard";
 import InventoryProduct from "./InventoryController/InventoryProduct";
 import InventoryProductDetails from "./InventoryController/InventoryProductDetails";
+import InventoryStockManagement from "./InventoryController/InventoryStockManagement";
+import InventorySuppliers from "./InventoryController/InventorySuppliers";
 // Stylist PAGES
 import StylistDashboard from "./Stylist/StylistDashboard";
 
@@ -64,8 +66,8 @@ function HomePageWrapper() {
         "client": "client-dashboard",
         "receptionist": "receptionist-dashboard", 
         "inventory-controller": "inventory-dashboard",
-        "branch-manager": "branchmanager-dashboard",
-        "branch-admin": "branchadmin-dashboard",
+        "branch-manager": "branch-manager-dashboard",
+        "branch-admin": "branch-admin-dashboard",
         "operational-manager": "operational-dashboard",
         "stylist": "stylist-dashboard",
         "super-admin": "systemadmin-dashboard"
@@ -299,11 +301,27 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/inventory-stock"
+        element={
+          <ProtectedRoute requiredRole="inventory-controller">
+            <InventoryStockManagement/>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/inventory-suppliers"
+        element={
+          <ProtectedRoute requiredRole="inventory-controller">
+            <InventorySuppliers/>
+          </ProtectedRoute>
+        }
+      />
       {/* Protected Branch Manager Routes */}
       <Route
-        path="/branchmanager-dashboard"
+        path="/branch-manager-dashboard"
         element={
-          <ProtectedRoute requiredRole="branch manager">
+          <ProtectedRoute requiredRole="branch-manager">
             <BranchManagerDashboard />
           </ProtectedRoute>
         }
@@ -311,9 +329,9 @@ function AppRoutes() {
 
       {/* Protected Branch Admin Routes */}
       <Route
-        path="/branchadmin-dashboard"
+        path="/branch-admin-dashboard"
         element={
-          <ProtectedRoute requiredRole="branch admin">
+          <ProtectedRoute requiredRole="branch-admin">
             <BranchAdminDashboard />
           </ProtectedRoute>
         }
@@ -323,7 +341,7 @@ function AppRoutes() {
       <Route
         path="/operational-dashboard"
         element={
-          <ProtectedRoute requiredRole="operational manager">
+          <ProtectedRoute requiredRole="operational-manager">
             <OperationalManagerDashboard />
           </ProtectedRoute>
         }

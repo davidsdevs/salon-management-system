@@ -33,8 +33,8 @@ const InventoryControllerSidebarWithHeader = ({ userInfo, pageTitle, children })
   const menuItems = [
     { name: "Dashboard", icon: LayoutDashboard, route: "/inventory-dashboard" },
     { name: "Products", icon: Package, route: "/inventory-products" },
-    { name: "Stock Management", icon: Boxes, route: "/inventory-controller-stock" },
-    { name: "Suppliers", icon: Truck, route: "/inventory-controller-suppliers" },
+    { name: "Stock Management", icon: Boxes, route: "/inventory-stock" },
+    { name: "Suppliers", icon: Truck, route: "/inventory-suppliers" },
     { name: "Purchase Orders / Stock Requests", icon: ClipboardList, route: "/inventory-controller-requests" },
     { name: "Deliveries", icon: Truck, route: "/inventory-controller-deliveries" },
     { name: "Reports", icon: FileText, route: "/inventory-controller-reports" },

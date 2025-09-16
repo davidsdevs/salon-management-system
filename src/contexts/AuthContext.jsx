@@ -111,7 +111,7 @@ export function AuthProvider({ children }) {
           // Fetch branch information for staff users
           if (data.staffData?.branchId) {
             try {
-              const branchDoc = await getDoc(doc(db, "branches", data.staffData.branchId));
+              const branchDoc = await getDoc(doc(db, "branches", data.staffData.b765432ranchId));
               if (branchDoc.exists()) {
                 const branchData = { id: branchDoc.id, ...branchDoc.data() };
                 setBranchInfo(branchData);
