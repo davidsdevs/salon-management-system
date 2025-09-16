@@ -29,12 +29,10 @@ import ServiceDetailPage from "./ServiceDetailPage";
 import StylistProfilePage from "./StylistProfilePage";
 
 // RECEPTIONIST PAGES
-import ReceptionistDashboard from "./Receptionist/ReceptionistDashboard";
-import ReceptionistAppointments from "./Receptionist/ReceptionistAppointments";
-import ReceptionistNewAppointment from "./Receptionist/ReceptionistNewAppointment";
+import ReceptionistDashboard from "./Receptionist/ReceptionistDashboard.jsx";
+import ReceptionistAppointments from "./Receptionist/ReceptionistAppointments.jsx";
+import ReceptionistNewAppointment from "./Receptionist/ReceptionistNewAppointment.jsx";
 
-// INVENTORY CONTROLLER PAGES
-import InventoryControllerDashboard from "./InventoryController/InventoryDashboard";
 
 // BRANCH MANAGER PAGES
 import BranchManagerDashboard from "./BranchManager/BranchManagerDashboard";
@@ -49,6 +47,8 @@ import OperationalManagerDashboard from "./OperationalManager/OperationalDashboa
 import SuperAdminDashboard from "./SystemAdmin/SuperAdminDashboard";
 // Inventory Controller PAGES
 import InventoryDashboard from "./InventoryController/InventoryDashboard";
+import InventoryProduct from "./InventoryController/InventoryProduct";
+import InventoryProductDetails from "./InventoryController/InventoryProductDetails";
 // Stylist PAGES
 import StylistDashboard from "./Stylist/StylistDashboard";
 
@@ -278,18 +278,33 @@ function AppRoutes() {
       <Route
         path="/inventory-dashboard"
         element={
-          <ProtectedRoute requiredRole="inventory controller">
+          <ProtectedRoute requiredRole="inventory-controller">
             <InventoryDashboard/>
           </ProtectedRoute>
         }
       />
-
+      <Route
+        path="/inventory-products"
+        element={
+          <ProtectedRoute requiredRole="inventory-controller">
+            <InventoryProduct/>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/inventory-products/details/:id"
+        element={
+          <ProtectedRoute requiredRole="inventory-controller">
+            <InventoryProductDetails/>
+          </ProtectedRoute>
+        }
+      />
       {/* Protected Branch Manager Routes */}
       <Route
         path="/branchmanager-dashboard"
         element={
           <ProtectedRoute requiredRole="branch manager">
-            <BranchAdminDashboard />
+            <BranchManagerDashboard />
           </ProtectedRoute>
         }
       />

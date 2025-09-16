@@ -1,23 +1,24 @@
 "use client"
 import { LogOut, Menu } from "lucide-react"
-import { useState } from "react"
-import { useNavigate } from "react-router-dom"
+import { useState, useEffect } from "react"
+import { useNavigate, useLocation } from "react-router-dom"
 import { useAuth } from "../../../contexts/AuthContext"
 import { 
   LayoutDashboard, 
-  Settings, 
-  Building2, 
-  Users, 
-  BarChart3, 
+  Boxes, 
+  Package, 
+  Truck, 
+  ClipboardList, 
   FileText, 
   User 
 } from "lucide-react"
 
 const InventoryControllerSidebarWithHeader = ({ userInfo, pageTitle, children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [activeItem, setActiveItem] = useState("Dashboard")
+  const [activeItem, setActiveItem] = useState("")
   const navigate = useNavigate()
-  const { logout } = useAuth()
+  const location = useLocation()
+  const { logout, branchInfo } = useAuth()
 
   const getCurrentDate = () => {
     const options = {
@@ -30,14 +31,23 @@ const InventoryControllerSidebarWithHeader = ({ userInfo, pageTitle, children })
   }
 
   const menuItems = [
-    { name: "Dashboard", icon: LayoutDashboard, route: "/operational-manager-dashboard" },
-    { name: "Operations", icon: Settings, route: "/operational-manager-operations" },
-    { name: "Branch Management", icon: Building2, route: "/operational-manager-branches" },
-    { name: "Staff Operations", icon: Users, route: "/operational-manager-staff" },
-    { name: "Performance Metrics", icon: BarChart3, route: "/operational-manager-metrics" },
-    { name: "Reports", icon: FileText, route: "/operational-manager-reports" },
-    { name: "Profile", icon: User, route: "/operational-manager-profile" }
+    { name: "Dashboard", icon: LayoutDashboard, route: "/inventory-dashboard" },
+    { name: "Products", icon: Package, route: "/inventory-products" },
+    { name: "Stock Management", icon: Boxes, route: "/inventory-controller-stock" },
+    { name: "Suppliers", icon: Truck, route: "/inventory-controller-suppliers" },
+    { name: "Purchase Orders / Stock Requests", icon: ClipboardList, route: "/inventory-controller-requests" },
+    { name: "Deliveries", icon: Truck, route: "/inventory-controller-deliveries" },
+    { name: "Reports", icon: FileText, route: "/inventory-controller-reports" },
+    { name: "Profile", icon: User, route: "/inventory-controller-profile" }
   ]
+  
+  // ✅ Sync active menu with current route
+  useEffect(() => {
+    const current = menuItems.find(item => location.pathname.startsWith(item.route))
+    if (current) {
+      setActiveItem(current.name)
+    }
+  }, [location.pathname])
 
   const handleMenuItemClick = (itemName, route) => {
     setActiveItem(itemName)
@@ -77,6 +87,15 @@ const InventoryControllerSidebarWithHeader = ({ userInfo, pageTitle, children })
               <img src="/logo.png" alt="David's Salon" className="h-8 w-auto" />
             </div>
 
+            {/* Branch Info */}
+            {branchInfo && (
+              <div className="mb-6">
+                <div className="w-full px-4 py-3 border border-[#160B53] rounded-lg text-center">
+                  <p className="text-[#160B53] font-medium text-sm">{branchInfo.name}</p>
+                </div>
+              </div>
+            )}
+
             {/* User Profile */}
             <div className="flex items-center space-x-3">
               <div className="w-12 h-12 rounded-full bg-gray-300 overflow-hidden">
@@ -88,12 +107,7 @@ const InventoryControllerSidebarWithHeader = ({ userInfo, pageTitle, children })
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900">{userInfo.name}</h3>
-                <p className="text-sm text-gray-500">{userInfo.subtitle}</p>
-                {userInfo.badge && (
-                  <span className="inline-block px-2 py-1 text-xs font-medium text-white bg-[#160B53] rounded-full mt-1">
-                    {userInfo.badge}
-                  </span>
-                )}
+                <p className="text-sm text-gray-500">{userInfo.badge}</p>
               </div>
             </div>
           </div>
