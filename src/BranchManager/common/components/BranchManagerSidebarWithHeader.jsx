@@ -5,19 +5,20 @@ import { useNavigate } from "react-router-dom"
 import { useAuth } from "../../../contexts/AuthContext"
 import { 
   LayoutDashboard, 
-  Building2, 
-  Users, 
-  BarChart3, 
   Calendar, 
+  Users, 
+  Phone, 
   CreditCard, 
-  User 
+  Clock, 
+  User,
+  Settings
 } from "lucide-react"
 
 const BranchManagerSidebarWithHeader = ({ userInfo, pageTitle, children }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeItem, setActiveItem] = useState("Dashboard")
   const navigate = useNavigate()
-  const { logout } = useAuth()
+  const { logout, branchInfo } = useAuth()
 
   const getCurrentDate = () => {
     const options = {
@@ -31,11 +32,12 @@ const BranchManagerSidebarWithHeader = ({ userInfo, pageTitle, children }) => {
 
   const menuItems = [
     { name: "Dashboard", icon: LayoutDashboard, route: "/branch-manager-dashboard" },
-    { name: "Branch Overview", icon: Building2, route: "/branch-manager-overview" },
-    { name: "Staff Management", icon: Users, route: "/branch-manager-staff" },
-    { name: "Performance", icon: BarChart3, route: "/branch-manager-performance" },
     { name: "Appointments", icon: Calendar, route: "/branch-manager-appointments" },
+    { name: "Staff Management", icon: Users, route: "/branch-manager-staff" },
+    { name: "Walk-ins", icon: Phone, route: "/branch-manager-walkins" },
     { name: "Financial Reports", icon: CreditCard, route: "/branch-manager-financial" },
+    { name: "Schedule", icon: Clock, route: "/branch-manager-schedule" },
+    { name: "Settings", icon: Settings, route: "/branch-manager-settings" },
     { name: "Profile", icon: User, route: "/branch-manager-profile" }
   ]
 
@@ -77,6 +79,15 @@ const BranchManagerSidebarWithHeader = ({ userInfo, pageTitle, children }) => {
               <img src="/logo.png" alt="David's Salon" className="h-8 w-auto" />
             </div>
 
+            {/* Branch Info */}
+            {branchInfo && (
+              <div className="mb-6">
+                <div className="w-full px-4 py-3 border border-[#160B53] rounded-lg text-center">
+                  <p className="text-[#160B53] font-medium text-sm">{branchInfo.name}</p>
+                </div>
+              </div>
+            )}
+
             {/* User Profile */}
             <div className="flex items-center space-x-3">
               <div className="w-12 h-12 rounded-full bg-gray-300 overflow-hidden">
@@ -88,12 +99,7 @@ const BranchManagerSidebarWithHeader = ({ userInfo, pageTitle, children }) => {
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold text-gray-900">{userInfo.name}</h3>
-                <p className="text-sm text-gray-500">{userInfo.subtitle}</p>
-                {userInfo.badge && (
-                  <span className="inline-block px-2 py-1 text-xs font-medium text-white bg-[#160B53] rounded-full mt-1">
-                    {userInfo.badge}
-                  </span>
-                )}
+                <p className="text-sm text-gray-500">{userInfo.badge}</p>
               </div>
             </div>
           </div>

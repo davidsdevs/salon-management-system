@@ -33,9 +33,17 @@ import ReceptionistDashboard from "./Receptionist/ReceptionistDashboard.jsx";
 import ReceptionistAppointments from "./Receptionist/ReceptionistAppointments.jsx";
 import ReceptionistNewAppointment from "./Receptionist/ReceptionistNewAppointment.jsx";
 
+// TEST PAGES
+import TestAppointmentModule from "./TestAppointmentModule.jsx";
+import SeedDataComponent from "./SeedDataComponent.jsx";
+import SeedStylistsPage from "./Admin/SeedStylistsPage.jsx";
+
 
 // BRANCH MANAGER PAGES
 import BranchManagerDashboard from "./BranchManager/BranchManagerDashboard";
+import BranchManagerAppointments from "./BranchManager/BranchManagerAppointments";
+import BranchManagerSchedule from "./BranchManager/BranchManagerSchedule";
+import BranchManagerSettings from "./BranchManager/BranchManagerSettings";
 
 // BRANCH ADMIN PAGES
 import BranchAdminDashboard from "./BranchAdmin/BranchAdminDashboard";
@@ -64,13 +72,13 @@ function HomePageWrapper() {
       // Map role names to correct dashboard paths
       const roleMap = {
         "client": "client-dashboard",
-        "receptionist": "receptionist-dashboard", 
-        "inventory-controller": "inventory-dashboard",
-        "branch-manager": "branch-manager-dashboard",
-        "branch-admin": "branch-admin-dashboard",
-        "operational-manager": "operational-dashboard",
+        "receptionist": "receptionist-dashboard",
+        "inventory_controller": "inventory-dashboard",
+        "branch_manager": "branch-manager-dashboard",
+        "branch_admin": "branch-admin-dashboard",
+        "operational_manager": "operational-dashboard",
         "stylist": "stylist-dashboard",
-        "super-admin": "systemadmin-dashboard"
+        "super_admin": "system-admin-dashboard"
       };
       
       const dashboardPath = `/${roleMap[userRole] || "client-dashboard"}`;
@@ -276,11 +284,25 @@ function AppRoutes() {
         }
       />
 
+      {/* Test Routes */}
+      <Route
+        path="/test-appointments"
+        element={<TestAppointmentModule />}
+      />
+      <Route
+        path="/seed-data"
+        element={<SeedDataComponent />}
+      />
+      <Route
+        path="/seed-stylists"
+        element={<SeedStylistsPage />}
+      />
+
       {/* Protected Inventory Controller Routes */}
       <Route
         path="/inventory-dashboard"
         element={
-          <ProtectedRoute requiredRole="inventory-controller">
+            <ProtectedRoute requiredRole="inventory_controller">
             <InventoryDashboard/>
           </ProtectedRoute>
         }
@@ -288,7 +310,7 @@ function AppRoutes() {
       <Route
         path="/inventory-products"
         element={
-          <ProtectedRoute requiredRole="inventory-controller">
+            <ProtectedRoute requiredRole="inventory_controller">
             <InventoryProduct/>
           </ProtectedRoute>
         }
@@ -296,7 +318,7 @@ function AppRoutes() {
       <Route
         path="/inventory-products/details/:id"
         element={
-          <ProtectedRoute requiredRole="inventory-controller">
+            <ProtectedRoute requiredRole="inventory_controller">
             <InventoryProductDetails/>
           </ProtectedRoute>
         }
@@ -304,7 +326,7 @@ function AppRoutes() {
       <Route
         path="/inventory-stock"
         element={
-          <ProtectedRoute requiredRole="inventory-controller">
+          <ProtectedRoute requiredRole="inventory_controller">
             <InventoryStockManagement/>
           </ProtectedRoute>
         }
@@ -312,7 +334,7 @@ function AppRoutes() {
       <Route
         path="/inventory-suppliers"
         element={
-          <ProtectedRoute requiredRole="inventory-controller">
+          <ProtectedRoute requiredRole="inventory_controller">
             <InventorySuppliers/>
           </ProtectedRoute>
         }
@@ -321,8 +343,32 @@ function AppRoutes() {
       <Route
         path="/branch-manager-dashboard"
         element={
-          <ProtectedRoute requiredRole="branch-manager">
+            <ProtectedRoute requiredRole="branch_manager">
             <BranchManagerDashboard />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/branch-manager-appointments"
+        element={
+            <ProtectedRoute requiredRole="branch_manager">
+            <BranchManagerAppointments />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/branch-manager-schedule"
+        element={
+            <ProtectedRoute requiredRole="branch_manager">
+            <BranchManagerSchedule />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/branch-manager-settings"
+        element={
+            <ProtectedRoute requiredRole="branch_manager">
+            <BranchManagerSettings />
           </ProtectedRoute>
         }
       />
@@ -331,7 +377,7 @@ function AppRoutes() {
       <Route
         path="/branch-admin-dashboard"
         element={
-          <ProtectedRoute requiredRole="branch-admin">
+            <ProtectedRoute requiredRole="branch_admin">
             <BranchAdminDashboard />
           </ProtectedRoute>
         }
@@ -341,7 +387,7 @@ function AppRoutes() {
       <Route
         path="/operational-dashboard"
         element={
-          <ProtectedRoute requiredRole="operational-manager">
+            <ProtectedRoute requiredRole="operational_manager">
             <OperationalManagerDashboard />
           </ProtectedRoute>
         }
@@ -359,9 +405,9 @@ function AppRoutes() {
 
       {/* Protected System Admin Routes */}
       <Route
-        path="/systemadmin-dashboard"
+        path="/system-admin-dashboard"
         element={
-          <ProtectedRoute requiredRole="system admin">
+            <ProtectedRoute requiredRole="super_admin">
             <SuperAdminDashboard />
           </ProtectedRoute>
         }

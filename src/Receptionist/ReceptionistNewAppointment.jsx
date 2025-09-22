@@ -20,8 +20,25 @@ import {
   ChevronRight,
   Check,
   X,
-  Info
+  Info,
+  Cake,
+  User2,
+  Tag,
+  Star,
+  Shield,
+  UserCheck
 } from "lucide-react";
+import { 
+  appointmentService, 
+  serviceService, 
+  stylistService, 
+  clientService,
+  appointmentUtils,
+  branchService,
+  scheduleService,
+  staffServicesService 
+} from "../services/appointmentService.js";
+import { sendWelcomePasswordEmail } from "../brevo";
 
 export default function ReceptionistNewAppointment() {
   const { userProfile, branchInfo } = useAuth();
@@ -52,16 +69,25 @@ export default function ReceptionistNewAppointment() {
   const [errors, setErrors] = useState({});
   const [clients, setClients] = useState([]);
   const [services, setServices] = useState([]);
+  const [availableServices, setAvailableServices] = useState([]);
   const [stylists, setStylists] = useState([]);
+  const [schedules, setSchedules] = useState([]);
+  const [staffServices, setStaffServices] = useState([]);
   const [servicesPerPage] = useState(6); // Show 6 services per page
   const [currentServicePage, setCurrentServicePage] = useState(1);
   const [serviceSearchTerm, setServiceSearchTerm] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [availableSlots, setAvailableSlots] = useState([]);
   const [showClientSearch, setShowClientSearch] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
   const [availableStylists, setAvailableStylists] = useState([]);
   const [clientMode, setClientMode] = useState("search"); // "search", "new", "selected"
   const [emailValidation, setEmailValidation] = useState({ isValid: null, message: "" });
+  const [phoneValidation, setPhoneValidation] = useState({ isValid: null, message: "" });
+  const [validationErrors, setValidationErrors] = useState({});
+  const [isValidating, setIsValidating] = useState(false);
+  const [currentMonth, setCurrentMonth] = useState(new Date());
+  const [isSendingPassword, setIsSendingPassword] = useState(false);
 
   const userInfo = {
     name: userProfile?.firstName || "Receptionist",
@@ -107,61 +133,182 @@ export default function ReceptionistNewAppointment() {
     return { isValid: true, message: "Email format is valid" };
   };
 
-  // Mock data - replace with actual Firestore queries
-  const mockServices = [
-    // Hair Services
-    { id: "1", name: "Haircut & Styling", duration: 60, price: 500, category: "hair", isChemical: false },
-    { id: "2", name: "Hair Color", duration: 120, price: 1500, category: "hair", isChemical: true },
-    { id: "3", name: "Highlights", duration: 180, price: 2000, category: "hair", isChemical: true },
-    { id: "4", name: "Rebond", duration: 240, price: 3000, category: "hair", isChemical: true },
-    { id: "5", name: "Perm", duration: 180, price: 2500, category: "hair", isChemical: true },
-    { id: "6", name: "Hair Treatment", duration: 90, price: 800, category: "hair", isChemical: false },
-    
-    // Nail Services
-    { id: "7", name: "Manicure", duration: 45, price: 300, category: "nails", isChemical: false },
-    { id: "8", name: "Pedicure", duration: 60, price: 400, category: "nails", isChemical: false },
-    { id: "9", name: "Gel Manicure", duration: 60, price: 500, category: "nails", isChemical: true },
-    { id: "10", name: "Nail Art", duration: 30, price: 200, category: "nails", isChemical: false },
-    
-    // Facial Services
-    { id: "11", name: "Facial Treatment", duration: 90, price: 800, category: "facial", isChemical: false },
-    { id: "12", name: "Chemical Peel", duration: 60, price: 1200, category: "facial", isChemical: true },
-    { id: "13", name: "Microdermabrasion", duration: 75, price: 1000, category: "facial", isChemical: false },
-    
-    // Other Services
-    { id: "14", name: "Beard Trim", duration: 30, price: 200, category: "other", isChemical: false },
-    { id: "15", name: "Eyebrow Shaping", duration: 30, price: 150, category: "other", isChemical: false }
-  ];
+  // Check if email already exists
+  const checkEmailExists = async (email) => {
+    if (!email) return false;
+    try {
+      return await clientService.checkEmailExists(email);
+    } catch (error) {
+      console.error('Error checking email:', error);
+      return false;
+    }
+  };
 
-  const mockStylists = [
-    { id: "1", name: "Anna Reyes", serviceIds: ["1", "2"], specialties: ["Haircut & Styling", "Hair Color"] },
-    { id: "2", name: "Sarah Johnson", serviceIds: ["2", "3", "4", "5"], specialties: ["Hair Color", "Highlights", "Rebond", "Perm"] },
-    { id: "3", name: "Maria Lopez", serviceIds: ["7", "8", "11"], specialties: ["Manicure", "Pedicure", "Facial Treatment"] },
-    { id: "4", name: "Mike Chen", serviceIds: ["1", "14"], specialties: ["Haircut & Styling", "Beard Trim"] },
-    { id: "5", name: "Lisa Wong", serviceIds: ["9", "10"], specialties: ["Gel Manicure", "Nail Art"] },
-    { id: "6", name: "Dr. Maria Santos", serviceIds: ["12", "13"], specialties: ["Chemical Peel", "Microdermabrasion"] }
-  ];
+  // Check if phone already exists
+  const checkPhoneExists = async (phone) => {
+    if (!phone) return false;
+    try {
+      return await clientService.checkPhoneExists(phone);
+    } catch (error) {
+      console.error('Error checking phone:', error);
+      return false;
+    }
+  };
 
-  const mockClients = [
-    { id: "1", name: "Maria Santos", phone: "+63 912 345 6789", email: "maria@email.com" },
-    { id: "2", name: "John Dela Cruz", phone: "+63 917 123 4567", email: "john@email.com" },
-    { id: "3", name: "Lisa Garcia", phone: "+63 918 987 6543", email: "lisa@email.com" },
-    { id: "4", name: "Robert Wilson", phone: "+63 919 555 1234", email: "robert@email.com" }
-  ];
+  // Real-time email validation
+  const handleEmailChange = async (email) => {
+    setFormData(prev => ({ ...prev, clientEmail: email }));
+    
+    // Basic format validation
+    const formatValidation = validateEmail(email);
+    setEmailValidation(formatValidation);
+    
+    // If format is valid, check if email exists
+    if (formatValidation.isValid && email) {
+      setIsValidating(true);
+      try {
+        const emailExists = await checkEmailExists(email);
+        if (emailExists) {
+          setEmailValidation({ 
+            isValid: false, 
+            message: "Email address is already registered with another client" 
+          });
+        } else {
+          setEmailValidation({ 
+            isValid: true, 
+            message: "Email address is available" 
+          });
+        }
+      } catch (error) {
+        setEmailValidation({ 
+          isValid: false, 
+          message: "Error checking email availability" 
+        });
+      } finally {
+        setIsValidating(false);
+      }
+    }
+  };
 
+  // Real-time phone validation
+  const handlePhoneChange = async (phone) => {
+    setFormData(prev => ({ ...prev, clientPhone: phone }));
+    
+    // Basic phone validation
+    if (!phone) {
+      setPhoneValidation({ isValid: null, message: "" });
+      return;
+    }
+    
+    if (phone.length < 10) {
+      setPhoneValidation({ 
+        isValid: false, 
+        message: "Phone number must be at least 10 digits" 
+      });
+      return;
+    }
+    
+    // Check if phone exists
+    setIsValidating(true);
+    try {
+      const phoneExists = await checkPhoneExists(phone);
+      if (phoneExists) {
+        setPhoneValidation({ 
+          isValid: false, 
+          message: "Phone number is already registered with another client" 
+        });
+      } else {
+        setPhoneValidation({ 
+          isValid: true, 
+          message: "Phone number is available" 
+        });
+      }
+    } catch (error) {
+      setPhoneValidation({ 
+        isValid: false, 
+        message: "Error checking phone availability" 
+      });
+    } finally {
+      setIsValidating(false);
+    }
+  };
+
+  // Load data from Firestore
   useEffect(() => {
-    setServices(mockServices);
-    setStylists(mockStylists);
-    setClients(mockClients);
+    const loadData = async () => {
+      try {
+        // Load services for current branch only
+        if (branchInfo?.id) {
+          let servicesData = await branchService.getServicesByBranch(branchInfo.id);
+          if (!servicesData || servicesData.length === 0) {
+            // Fallback to global services if branch-specific services are not set up
+            servicesData = await serviceService.getServices();
+          }
+        setServices(servicesData || []);
+        }
+        
+        // Load stylists for current branch
+        if (branchInfo?.id) {
+          const stylistsData = await stylistService.getStylistsByBranch(branchInfo.id);
+          // Transform stylist data to match expected format
+          const transformedStylists = stylistsData.map(stylist => ({
+            id: stylist.id,
+            name: `${stylist.firstName} ${stylist.lastName}`,
+            specialties: stylist.staffData?.skills || [],
+            serviceIds: stylist.staffData?.skills || [],
+            phone: stylist.phoneNumber,
+            email: stylist.email,
+            available: true,
+            rating: 4.5
+          }));
+          setStylists(transformedStylists);
+        }
+        
+        // Load clients
+        const clientsData = await clientService.getClients();
+        console.log('Loaded clients for appointment form:', clientsData);
+        setClients(clientsData || []);
+        
+        // Load schedules for availability checking
+        if (branchInfo?.id) {
+          const today = new Date();
+          const startDate = new Date(today);
+          startDate.setDate(today.getDate() - 7); // Load 7 days back
+          const endDate = new Date(today);
+          endDate.setDate(today.getDate() + 30); // Load 30 days forward
+
+          const schedulesData = await scheduleService.getBranchSchedules(
+            branchInfo.id,
+            startDate.toISOString().split('T')[0],
+            endDate.toISOString().split('T')[0]
+          );
+          setSchedules(schedulesData || []);
+        }
+        
+        // Load staff services relationships
+        if (branchInfo?.id) {
+          const staffServicesData = await staffServicesService.getStaffServicesByBranch(branchInfo.id);
+          setStaffServices(staffServicesData || []);
+        }
     
-    // Generate initial time slots
-    generateAvailableSlots();
-  }, []);
+        // Generate initial time slots
+        generateAvailableSlots();
+      } catch (error) {
+        console.error('Error loading data:', error);
+        // Set empty arrays as fallback
+        setServices([]);
+        setStylists([]);
+        setClients([]);
+      }
+    };
+
+    loadData();
+  }, [branchInfo?.id]);
 
   useEffect(() => {
     // Calculate total cost when services change
-    const total = formData.services.reduce((sum, serviceId) => {
-      const service = services.find(s => s.id === serviceId);
+    const total = (formData.services || []).reduce((sum, serviceId) => {
+      const service = (services || []).find(s => s && s.id === serviceId);
       return sum + (service?.price || 0);
     }, 0);
     setFormData(prev => ({ ...prev, totalCost: total }));
@@ -171,27 +318,37 @@ export default function ReceptionistNewAppointment() {
     if (formData.date) {
       generateAvailableSlots();
     }
-  }, [formData.date]);
+  }, [formData.date, branchInfo?.operatingHours]);
 
-  const generateAvailableSlots = () => {
-    const slots = [];
-    const startTime = 9; // 9 AM
-    const endTime = 18; // 6 PM
-    
-    for (let hour = startTime; hour < endTime; hour++) {
-      const timeString = `${hour.toString().padStart(2, '0')}:00`;
-      const displayHour = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
-      const ampm = hour >= 12 ? 'PM' : 'AM';
+  const generateAvailableSlots = async () => {
+    try {
+      const dateToUse = formData.date || new Date().toISOString().split('T')[0];
       
-      slots.push({
-        time: timeString,
-        display: `${displayHour}:00 ${ampm}`,
-        available: true // All time slots are always available
-      });
+      // Generate time slots based on branch operating hours
+      const slots = appointmentUtils.generateTimeSlots(dateToUse, branchInfo?.operatingHours);
+      
+      // Check availability against existing appointments
+      if (branchInfo?.id && formData.date) {
+        const existingAppointments = await appointmentService.getAppointmentsByBranch(branchInfo.id, {
+          date: formData.date
+        });
+        
+        const updatedSlots = slots.map(slot => ({
+          ...slot,
+          available: appointmentUtils.isTimeSlotAvailable(existingAppointments, formData.date, slot.time)
+        }));
+        
+        setAvailableSlots(updatedSlots);
+      } else {
+        setAvailableSlots(slots);
+      }
+    } catch (error) {
+      console.error('Error generating time slots:', error);
+      // Fallback to basic slots with operating hours
+      const dateToUse = formData.date || new Date().toISOString().split('T')[0];
+      const slots = appointmentUtils.generateTimeSlots(dateToUse, branchInfo?.operatingHours);
+      setAvailableSlots(slots);
     }
-    
-    console.log('Generated time slots:', slots.length);
-    setAvailableSlots(slots);
   };
 
   const nextStep = () => {
@@ -208,20 +365,24 @@ export default function ReceptionistNewAppointment() {
     const newErrors = {};
     
       switch (currentStep) {
-        case 1: // Client Information
-          if (clientMode === "selected") {
-            // If client is selected, no validation needed
-            break;
-          } else if (clientMode === "new") {
-            // If registering new client, validate all fields
+        case 1: // Client Information - Basic fields + conditional email
             if (!formData.clientFirstName.trim()) newErrors.clientFirstName = "First name is required";
             if (!formData.clientLastName.trim()) newErrors.clientLastName = "Last name is required";
             if (!formData.clientPhone.trim()) newErrors.clientPhone = "Phone number is required";
-          } else {
-            // If in search mode, need to select a client or register new
-            if (!formData.clientId && !formData.clientFirstName.trim() && !formData.clientLastName.trim()) {
-              newErrors.client = "Please search for an existing client or register a new one";
-            }
+          
+          // Validate phone number
+          if (formData.clientPhone && phoneValidation.isValid === false) {
+            newErrors.clientPhone = phoneValidation.message;
+          }
+          
+          // Only require email if registering as user
+          if (formData.registerAsUser && !formData.clientEmail.trim()) {
+            newErrors.clientEmail = "Email is required when registering as user";
+          }
+          
+          // Validate email format if provided
+          if (formData.clientEmail && emailValidation.isValid === false) {
+            newErrors.clientEmail = emailValidation.message;
           }
           break;
       case 2: // Date & Time
@@ -242,6 +403,85 @@ export default function ReceptionistNewAppointment() {
     
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
+  };
+
+  // Calendar helper functions
+  const isSameDay = (date1, date2) => {
+    if (!date1 || !date2) return false;
+    
+    // Convert both dates to Date objects if they're strings
+    const d1 = date1 instanceof Date ? date1 : new Date(date1);
+    const d2 = date2 instanceof Date ? date2 : new Date(date2);
+    
+    // Check if dates are valid
+    if (isNaN(d1.getTime()) || isNaN(d2.getTime())) return false;
+    
+    // Normalize both dates to local timezone for comparison
+    const normalized1 = new Date(d1.getFullYear(), d1.getMonth(), d1.getDate());
+    const normalized2 = new Date(d2.getFullYear(), d2.getMonth(), d2.getDate());
+    
+    const isSame = normalized1.getTime() === normalized2.getTime();
+    
+    console.log('Comparing dates:', d1, d2, 'Normalized:', normalized1, normalized2, 'Same:', isSame);
+    return isSame;
+  };
+
+  const getCalendarDays = () => {
+    if (!currentMonth) return [];
+    
+    const year = currentMonth.getFullYear();
+    const month = currentMonth.getMonth();
+    
+    // Get first day of the month and calculate starting date
+    const firstDay = new Date(year, month, 1);
+    const startDate = new Date(firstDay);
+    startDate.setDate(startDate.getDate() - firstDay.getDay());
+    
+    const days = [];
+    for (let i = 0; i < 42; i++) { // 6 weeks * 7 days
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + i);
+      days.push(date);
+    }
+    
+    return days;
+  };
+
+  const handleDateSelect = (date) => {
+    if (!date) return;
+    
+    // Use local date methods to avoid timezone issues
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    const dateString = `${year}-${month}-${day}`;
+    
+    console.log('Selected date:', date, 'Date string:', dateString);
+    
+    setFormData(prev => ({
+      ...prev,
+      date: dateString,
+      time: '' // Reset time when date changes
+    }));
+    
+    // Clear time-related errors
+    setErrors(prev => ({
+      ...prev,
+      time: ''
+    }));
+  };
+
+  const handleTimeSelect = (time) => {
+    setFormData(prev => ({
+      ...prev,
+      time: time
+    }));
+    
+    // Clear time error
+    setErrors(prev => ({
+      ...prev,
+      time: ''
+    }));
   };
 
   const handleInputChange = (e) => {
@@ -288,22 +528,17 @@ export default function ReceptionistNewAppointment() {
   };
 
   const handleClientSelect = (client) => {
-    // Split the client name into first and last name
-    const nameParts = client.name.split(' ');
-    const firstName = nameParts[0] || '';
-    const lastName = nameParts.slice(1).join(' ') || '';
-    
     setFormData(prev => ({
       ...prev,
-      clientFirstName: firstName,
-      clientLastName: lastName,
-      clientPhone: client.phone,
+      clientFirstName: client.firstName || '',
+      clientLastName: client.lastName || '',
+      clientPhone: client.phoneNumber,
       clientEmail: client.email,
       clientBirthday: client.birthday || "",
       clientGender: client.gender || "",
       clientId: client.id,
       isNewClient: false,
-      registerAsUser: false,
+      registerAsUser: false, // Always set to false for existing clients
       autoGeneratedPassword: ""
     }));
     setClientMode("selected");
@@ -330,14 +565,75 @@ export default function ReceptionistNewAppointment() {
     }));
   };
 
+  // Check if a stylist is available at a specific date and time
+  const isStylistAvailable = (stylistId, date, time) => {
+    if (!date || !time || !stylistId) return true; // Default to available if no date/time selected
+    
+    const dateStr = date.split('T')[0]; // Ensure we only use the date part
+    const stylistSchedules = schedules.filter(schedule => 
+      schedule.stylistId === stylistId && schedule.date === dateStr
+    );
+    
+    // If no schedule found, stylist is available by default
+    if (stylistSchedules.length === 0) return true;
+    
+    // Check if the time conflicts with any scheduled exceptions
+    for (const schedule of stylistSchedules) {
+      if (schedule.status === 'available') {
+        continue; // Available schedules don't block availability
+      }
+      
+      // For busy, break, or off schedules, check time conflict
+      const appointmentTime = time;
+      const scheduleStart = schedule.startTime;
+      const scheduleEnd = schedule.endTime;
+      
+      // Simple time comparison (assuming HH:MM format)
+      if (appointmentTime >= scheduleStart && appointmentTime < scheduleEnd) {
+        return false; // Stylist is not available during this time
+      }
+    }
+    
+    return true; // Available if no conflicts found
+  };
+
   const getAvailableStylistsForService = (serviceId) => {
-    return stylists.filter(stylist => stylist.serviceIds.includes(serviceId));
+    return (stylists || []).filter(stylist => {
+      // First check if stylist can perform the service using staff_services collection
+      const canPerformService = staffServices.some(staffService => 
+        staffService.staffId === stylist.id && staffService.serviceId === serviceId
+      );
+      
+      if (!canPerformService) return false;
+      
+      // Then check if stylist is available at the selected date/time
+      const isAvailable = isStylistAvailable(stylist.id, formData.date, formData.time);
+      
+      return isAvailable;
+    });
+  };
+
+  // Get all stylists for a service (including unavailable ones) with availability status
+  const getAllStylistsForService = (serviceId) => {
+    return (stylists || []).filter(stylist => {
+      // Check if stylist can perform the service using staff_services collection
+      const canPerformService = staffServices.some(staffService => 
+        staffService.staffId === stylist.id && staffService.serviceId === serviceId
+      );
+      
+      return canPerformService;
+    }).map(stylist => ({
+      ...stylist,
+      isAvailableAtSelectedTime: isStylistAvailable(stylist.id, formData.date, formData.time)
+    }));
   };
 
   const getSelectedServices = () => {
-    return formData.services.map(serviceId => 
-      services.find(service => service.id === serviceId)
-    ).filter(Boolean);
+    const allowedServiceIds = new Set((staffServices || []).map(ss => ss.serviceId));
+    return (formData.services || [])
+      .filter(serviceId => allowedServiceIds.has(serviceId))
+      .map(serviceId => (services || []).find(service => service && service.id === serviceId))
+      .filter(Boolean);
   };
 
   const hasChemicalServices = () => {
@@ -352,25 +648,100 @@ export default function ReceptionistNewAppointment() {
     setLoading(true);
     
     try {
-      // TODO: Save to Firestore
-      console.log("Creating appointment:", formData);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Prepare appointment data (store only minimal client fields in appointment)
+      const selectedServices = getSelectedServices();
+      const appointmentData = {
+        clientFirstName: formData.clientFirstName,
+        clientLastName: formData.clientLastName,
+        clientPhone: formData.clientPhone,
+        clientId: formData.clientId || null,
+        services: selectedServices.map(service => ({
+          id: service.id,
+          name: service.name,
+          duration: service.duration,
+          price: service.price,
+          category: service.category
+        })),
+        stylists: Object.entries(formData.stylists).map(([serviceId, stylistId]) => {
+          const stylist = stylists.find(s => s.id === stylistId);
+          const service = services.find(s => s.id === serviceId);
+          return {
+            serviceId,
+            serviceName: service?.name,
+            stylistId,
+            stylistName: stylist?.name
+          };
+        }),
+        date: formData.date,
+        time: formData.time,
+        totalCost: formData.totalCost,
+        notes: formData.notes,
+        status: formData.status,
+        branchId: branchInfo?.id || null,
+        createdBy: userProfile?.uid || null
+      };
+
+      // Do not create auth user here. Registration happens separately via client signup flow.
+
+      // If registering as user, send welcome email with autogenerated password
+      if (formData.registerAsUser && formData.clientEmail && formData.autoGeneratedPassword) {
+        try {
+          await sendWelcomePasswordEmail(
+            formData.clientEmail,
+            formData.autoGeneratedPassword,
+            formData.clientFirstName
+          );
+        } catch (emailErr) {
+          console.error('Error sending welcome email:', emailErr);
+          // Non-blocking: continue creating appointment
+        }
+      }
+
+      // Create appointment
+      await appointmentService.createAppointment(appointmentData);
       
       // Redirect back to appointments list
       navigate("/receptionist-appointments");
     } catch (error) {
       console.error("Error creating appointment:", error);
+      
+      // Handle validation errors from client creation
+      if (error.message && error.message.includes('{')) {
+        try {
+          const validationErrors = JSON.parse(error.message);
+          setValidationErrors(validationErrors);
+          
+          // Show specific error messages
+          if (validationErrors.email) {
+            setEmailValidation({ isValid: false, message: validationErrors.email });
+          }
+          if (validationErrors.phone) {
+            setPhoneValidation({ isValid: false, message: validationErrors.phone });
+          }
+        } catch (parseError) {
+          console.error("Error parsing validation errors:", parseError);
+        }
+      } else {
+        // Generic error message
+        alert("Error creating appointment. Please try again.");
+      }
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredClients = clients.filter(client =>
-    client.name.toLowerCase().includes((formData.clientFirstName + " " + formData.clientLastName).toLowerCase().trim()) ||
-    client.phone.includes(formData.clientPhone)
-  );
+  const filteredClients = clients.filter(client => {
+    const fullName = `${client.firstName || ''} ${client.lastName || ''}`.toLowerCase();
+    const searchLower = searchTerm.toLowerCase().trim();
+    const matches = fullName.includes(searchLower) || 
+           (client.phoneNumber || '').includes(searchLower);
+    
+    if (searchTerm && matches) {
+      console.log('Client search match:', client.firstName, client.lastName, 'for term:', searchTerm);
+    }
+    
+    return matches;
+  });
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -388,6 +759,26 @@ export default function ReceptionistNewAppointment() {
   };
 
   const renderClientInfoStep = () => {
+    // Show loading state only if clients array is undefined (still loading)
+    // If clients is an empty array, it means no clients exist, so show the form
+    if (clients === undefined) {
+      return (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#160B53] mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading client data...</p>
+        </div>
+      );
+    }
+
+    // Show message if no clients exist, but still show the form
+    const noClientsMessage = clients.length === 0 ? (
+      <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+        <p className="text-blue-800 text-sm">
+          <strong>Note:</strong> No existing clients found. You can create a new client below.
+        </p>
+      </div>
+    ) : null;
+
     // If client is already selected, show their info
     if (clientMode === "selected" && formData.clientId) {
       const selectedClient = clients.find(c => c.id === formData.clientId);
@@ -401,7 +792,9 @@ export default function ReceptionistNewAppointment() {
           <div className="bg-green-50 border border-green-200 rounded-lg p-4">
             <div className="flex items-center justify-between">
               <div>
-                <h3 className="font-medium text-green-800">{selectedClient?.name}</h3>
+                <h3 className="font-medium text-green-800">
+                  {`${selectedClient?.firstName || ''} ${selectedClient?.lastName || ''}`.trim()}
+                </h3>
                 <p className="text-sm text-green-600">{selectedClient?.phone}</p>
                 {selectedClient?.email && (
                   <p className="text-sm text-green-600">{selectedClient?.email}</p>
@@ -419,6 +812,7 @@ export default function ReceptionistNewAppointment() {
                     clientEmail: "",
                     clientBirthday: "",
                     clientGender: "",
+                    isNewClient: true,
                     registerAsUser: false,
                     autoGeneratedPassword: ""
                   }));
@@ -441,97 +835,319 @@ export default function ReceptionistNewAppointment() {
       return renderNewClientForm();
     }
 
-    // Default: Show search and registration options
+    // Default: Show simplified client form with search
     return (
       <div className="space-y-6">
+        {noClientsMessage}
         <div>
-          <h2 className="text-xl font-semibold text-gray-900 mb-2">Client Selection</h2>
-          <p className="text-gray-600">Search for existing client or register a new one</p>
+          <h2 className="text-xl font-semibold text-gray-900 mb-2">Client Information</h2>
+          <p className="text-gray-600">Search for existing client or enter new client details</p>
         </div>
 
-        {/* Search Existing Client */}
+        {/* Search Bar */}
         <div className="space-y-4">
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-3">Search Existing Client</h3>
             <div className="relative">
               <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
               <input
                 type="text"
-                value={`${formData.clientFirstName} ${formData.clientLastName}`.trim()}
+              value={searchTerm}
                 onChange={(e) => {
-                  const fullName = e.target.value;
-                  const nameParts = fullName.split(' ');
-                  setFormData(prev => ({ 
-                    ...prev, 
-                    clientFirstName: nameParts[0] || '',
-                    clientLastName: nameParts.slice(1).join(' ') || ''
-                  }));
-                  setShowClientSearch(true);
-                }}
-                onFocus={() => setShowClientSearch(true)}
-                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#160B53] focus:border-transparent"
-                placeholder="Search by name or phone number"
+                setSearchTerm(e.target.value);
+                setShowClientSearch(e.target.value.length > 0);
+              }}
+              placeholder="Search existing client by name or phone..."
+              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#160B53] focus:border-transparent text-lg"
               />
             </div>
             
             {/* Search Results */}
-            {showClientSearch && (formData.clientFirstName || formData.clientLastName) && (
-              <div className="mt-2">
+          {showClientSearch && searchTerm && (
+            <div className="bg-white border border-gray-200 rounded-xl shadow-2xl max-h-80 overflow-y-auto z-50">
                 {filteredClients.length > 0 ? (
-                  <div className="border border-gray-200 rounded-lg max-h-48 overflow-y-auto">
-                    {filteredClients.map(client => (
-                      <button
+                <div className="divide-y divide-gray-100">
+                  {filteredClients.map((client) => (
+                    <div
                         key={client.id}
-                        type="button"
-                        onClick={() => handleClientSelect(client)}
-                        className="w-full px-4 py-3 text-left hover:bg-gray-50 border-b border-gray-100 last:border-b-0"
-                      >
-                        <div className="font-medium text-gray-900">{client.name}</div>
-                        <div className="text-sm text-gray-500">{client.phone}</div>
+                      onClick={() => {
+                        // Autofill the form with selected client data
+                        setFormData(prev => ({
+                          ...prev,
+                          clientFirstName: client.firstName || '',
+                          clientLastName: client.lastName || '',
+                          clientPhone: client.phoneNumber || '',
+                          clientEmail: client.email || '',
+                          clientBirthday: client.birthday || '',
+                          clientGender: client.gender || '',
+                          clientId: client.id,
+                          isNewClient: false,
+                          registerAsUser: false, // Always set to false for existing clients
+                          autoGeneratedPassword: ""
+                        }));
+                        setSearchTerm('');
+                        setShowClientSearch(false);
+                      }}
+                      className="p-6 hover:bg-gradient-to-r hover:from-blue-50 hover:to-indigo-50 cursor-pointer transition-all duration-300 border-l-4 border-transparent hover:border-[#160B53] hover:shadow-md"
+                    >
+                      <div className="flex items-start gap-4">
+                        {/* Client Avatar */}
+                        <div className="flex-shrink-0">
+                          <div className="w-14 h-14 bg-gradient-to-br from-[#160B53] to-[#2D1B69] rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg ring-2 ring-white">
+                            {`${client.firstName?.[0] || ''}${client.lastName?.[0] || ''}`.toUpperCase()}
+                          </div>
+                        </div>
+
+                        {/* Client Information */}
+                        <div className="flex-1 min-w-0">
+                          {/* Name and ID */}
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-xl font-bold text-gray-900 truncate">
+                              {`${client.firstName || ''} ${client.lastName || ''}`.trim()}
+                            </h4>
+                            <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1.5 rounded-full font-mono">
+                              ID: {client.id?.slice(-6) || 'N/A'}
+                            </span>
+                          </div>
+
+                          {/* Contact Information */}
+                          <div className="space-y-2 mb-4">
+                            <div className="flex items-center gap-3 text-sm">
+                              <div className="w-5 h-5 bg-blue-100 rounded-full flex items-center justify-center">
+                                <Phone className="w-3 h-3 text-blue-600" />
+                              </div>
+                              <span className="text-gray-700 font-medium">{client.phoneNumber || 'No phone'}</span>
+                            </div>
                         {client.email && (
-                          <div className="text-sm text-gray-500">{client.email}</div>
-                        )}
-                      </button>
+                              <div className="flex items-center gap-3 text-sm">
+                                <div className="w-5 h-5 bg-green-100 rounded-full flex items-center justify-center">
+                                  <Mail className="w-3 h-3 text-green-600" />
+                                </div>
+                                <span className="text-gray-700 truncate">{client.email}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Profile Details */}
+                          <div className="flex flex-wrap gap-2 mb-4">
+                            {client.birthday && (
+                              <div className="flex items-center gap-2 text-xs text-gray-700 bg-orange-50 px-3 py-2 rounded-lg border border-orange-200">
+                                <Cake className="w-3 h-3 text-orange-600" />
+                                <span className="font-medium">{new Date(client.birthday).toLocaleDateString()}</span>
+                              </div>
+                            )}
+                            {client.gender && (
+                              <div className="flex items-center gap-2 text-xs text-gray-700 bg-purple-50 px-3 py-2 rounded-lg border border-purple-200">
+                                <User2 className="w-3 h-3 text-purple-600" />
+                                <span className="font-medium">{client.gender.charAt(0).toUpperCase() + client.gender.slice(1)}</span>
+                              </div>
+                            )}
+                            {client.clientData?.category && (
+                              <div className="flex items-center gap-2 text-xs text-gray-700 bg-indigo-50 px-3 py-2 rounded-lg border border-indigo-200">
+                                <Tag className="w-3 h-3 text-indigo-600" />
+                                <span className="font-medium">Category: {client.clientData.category}</span>
+                              </div>
+                            )}
+                            {client.clientData?.loyaltyPoints && (
+                              <div className="flex items-center gap-2 text-xs text-gray-700 bg-yellow-50 px-3 py-2 rounded-lg border border-yellow-200">
+                                <Star className="w-3 h-3 text-yellow-600" />
+                                <span className="font-medium">{client.clientData.loyaltyPoints} points</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* Account Status and Action */}
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              {client.isUser ? (
+                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-green-50 border border-green-200">
+                                  <Shield className="w-4 h-4 text-green-600" />
+                                  <span className="text-xs font-semibold text-green-800">User Account</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200">
+                                  <UserCheck className="w-4 h-4 text-gray-600" />
+                                  <span className="text-xs font-semibold text-gray-700">Client Only</span>
+                                </div>
+                              )}
+                            </div>
+                            
+                            {/* Select Button */}
+                            <div className="flex items-center gap-2 text-sm text-white font-semibold bg-gradient-to-r from-[#160B53] to-[#2D1B69] px-4 py-2 rounded-lg hover:from-[#0f073d] hover:to-[#1a0a4a] transition-all duration-200 shadow-md hover:shadow-lg">
+                              <CheckCircle className="w-4 h-4" />
+                              <span>Select Client</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-4 text-gray-500">
-                    <p className="text-sm">No existing clients found for "{formData.clientName}"</p>
+                <div className="p-12 text-center text-gray-500">
+                  <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner">
+                    <Search className="w-10 h-10 text-gray-400" />
+                  </div>
+                  <h3 className="text-xl font-semibold text-gray-900 mb-3">No clients found</h3>
+                  <p className="text-sm text-gray-600 mb-4">No clients match "{searchTerm}"</p>
+                  <p className="text-xs text-gray-500 bg-gray-50 px-4 py-2 rounded-lg inline-block">
+                    Fill in the form below to create a new client
+                  </p>
                   </div>
                 )}
               </div>
             )}
           </div>
 
-          {/* Divider */}
-          <div className="relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-300" />
+        {/* Client Form */}
+        <div className="bg-gray-50 rounded-lg p-6">
+          <h3 className="text-lg font-medium text-gray-900 mb-4">Client Details</h3>
+          
+          {/* Basic Required Fields */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">First Name *</label>
+              <input
+                type="text"
+                value={formData.clientFirstName}
+                onChange={(e) => setFormData(prev => ({ ...prev, clientFirstName: e.target.value }))}
+                placeholder="Enter first name"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#160B53] focus:border-transparent"
+              />
             </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-2 bg-white text-gray-500">OR</span>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Last Name *</label>
+              <input
+                type="text"
+                value={formData.clientLastName}
+                onChange={(e) => setFormData(prev => ({ ...prev, clientLastName: e.target.value }))}
+                placeholder="Enter last name"
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#160B53] focus:border-transparent"
+              />
             </div>
+          </div>
+          <div className="mt-4">
+            <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number *</label>
+            <input
+              type="text"
+              value={formData.clientPhone}
+              onChange={(e) => handlePhoneChange(e.target.value)}
+              placeholder="Enter phone number"
+              className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#160B53] focus:border-transparent ${
+                phoneValidation.isValid === false ? 'border-red-500' : 
+                phoneValidation.isValid === true ? 'border-green-500' : 'border-gray-300'
+              }`}
+            />
+            {phoneValidation.message && (
+              <p className={`mt-1 text-sm ${
+                phoneValidation.isValid === false ? 'text-red-600' : 
+                phoneValidation.isValid === true ? 'text-green-600' : 'text-gray-500'
+              }`}>
+                {isValidating ? 'Checking availability...' : phoneValidation.message}
+              </p>
+            )}
           </div>
 
-          {/* Register New Client */}
+          {/* User Registration Option */}
+          <div className="mt-6 p-4 bg-white rounded-lg border border-gray-200">
+            <h4 className="text-sm font-medium text-gray-900 mb-3">Register as User Account?</h4>
+            <div className="space-y-3">
+              <label className={`flex items-center ${formData.clientId ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                <input
+                  type="radio"
+                  name="registerAsUser"
+                  checked={formData.registerAsUser === true}
+                  onChange={() => setFormData(prev => ({ ...prev, registerAsUser: true }))}
+                  disabled={!!formData.clientId}
+                  className="h-4 w-4 text-[#160B53] focus:ring-[#160B53] border-gray-300 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+                <span className={`ml-2 text-sm ${formData.clientId ? 'text-gray-500' : 'text-gray-700'}`}>
+                  <strong>Yes, register as user</strong> - Client can login and book appointments online
+                </span>
+              </label>
+              <label className="flex items-center">
+                <input
+                  type="radio"
+                  name="registerAsUser"
+                  checked={formData.registerAsUser === false}
+                  onChange={() => setFormData(prev => ({ ...prev, registerAsUser: false }))}
+                  className="h-4 w-4 text-[#160B53] focus:ring-[#160B53] border-gray-300"
+                />
+                <span className="ml-2 text-sm text-gray-700">
+                  <strong>No, client only</strong> - Just for appointment booking, no online access
+                </span>
+              </label>
+            </div>
+            
+            {/* Information message for existing clients */}
+            {formData.clientId && (
+              <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <Info className="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                  <div className="text-sm text-blue-800">
+                    <p className="font-medium mb-1">Existing Client Selected</p>
+                    <p>This client already exists in the system. User registration is not available for existing clients to prevent duplicate accounts.</p>
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Additional Registration Fields - Only show if registering as user */}
+            {formData.registerAsUser && (
+              <div className="mt-6 space-y-4">
+                <div className="border-t border-gray-200 pt-4">
+                  <h5 className="text-sm font-medium text-gray-900 mb-3">Additional Registration Details</h5>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div>
-            <h3 className="text-lg font-medium text-gray-900 mb-3">Register New Client</h3>
-            <p className="text-sm text-gray-600 mb-4">
-              If the client is not in the system, you can register them now.
-            </p>
-            <button
-              type="button"
-              onClick={() => {
-                setClientMode("new");
-                setShowClientSearch(false);
-              }}
-              className="w-full flex items-center justify-center gap-2 px-4 py-3 border-2 border-dashed border-[#160B53] text-[#160B53] rounded-lg hover:bg-[#160B53] hover:text-white transition-colors"
-            >
-              <User className="w-5 h-5" />
-              Register New Client
-            </button>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Email Address *</label>
+                      <input
+                        type="email"
+                        value={formData.clientEmail}
+                        onChange={(e) => handleEmailChange(e.target.value)}
+                        placeholder="Enter email address"
+                        className={`w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-[#160B53] focus:border-transparent ${
+                          emailValidation.isValid === false ? 'border-red-500' : 
+                          emailValidation.isValid === true ? 'border-green-500' : 'border-gray-300'
+                        }`}
+                      />
+                      {emailValidation.message && (
+                        <p className={`mt-1 text-sm ${
+                          emailValidation.isValid === false ? 'text-red-600' : 
+                          emailValidation.isValid === true ? 'text-green-600' : 'text-gray-500'
+                        }`}>
+                          {isValidating ? 'Checking availability...' : emailValidation.message}
+                        </p>
+                      )}
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">Birthday</label>
+                      <input
+                        type="date"
+                        value={formData.clientBirthday}
+                        onChange={(e) => setFormData(prev => ({ ...prev, clientBirthday: e.target.value }))}
+                        className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#160B53] focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="mt-4">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
+                    <select
+                      value={formData.clientGender}
+                      onChange={(e) => setFormData(prev => ({ ...prev, clientGender: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#160B53] focus:border-transparent"
+                    >
+                      <option value="">Select gender</option>
+                      <option value="male">Male</option>
+                      <option value="female">Female</option>
+                      <option value="other">Other</option>
+                    </select>
           </div>
         </div>
+              </div>
+            )}
+          </div>
+        </div>
+
       </div>
     );
   };
@@ -744,7 +1360,39 @@ export default function ReceptionistNewAppointment() {
                     <p>• First 2 letters of last name (lowercase)</p>
                     <p>• Last 2 digits of birth year</p>
                     <p>• 2 random special characters</p>
-                    <p className="mt-1">This password will be sent to the client's email address for their first login.</p>
+                  </div>
+                  <div className="mt-3">
+                    <button
+                      type="button"
+                      onClick={async () => {
+                        if (!formData.clientEmail) {
+                          alert('Please enter an email first.');
+                          return;
+                        }
+                        if (emailValidation.isValid === false) {
+                          alert(emailValidation.message || 'Please provide a valid email.');
+                          return;
+                        }
+                        setIsSendingPassword(true);
+                        try {
+                          await sendWelcomePasswordEmail(
+                            formData.clientEmail,
+                            formData.autoGeneratedPassword || '',
+                            formData.clientFirstName
+                          );
+                          alert('Password email sent.');
+                        } catch (e) {
+                          console.error('Error sending password email:', e);
+                          alert('Failed to send password email.');
+                        } finally {
+                          setIsSendingPassword(false);
+                        }
+                      }}
+                      className="px-3 py-2 bg-[#160B53] text-white rounded hover:bg-[#0f073d] disabled:opacity-50"
+                      disabled={isSendingPassword}
+                    >
+                      {isSendingPassword ? 'Sending…' : 'Send Password Email'}
+                    </button>
                   </div>
                 </div>
               )}
@@ -786,142 +1434,237 @@ export default function ReceptionistNewAppointment() {
     <div className="space-y-6">
       <div>
         <h2 className="text-xl font-semibold text-gray-900 mb-2">Appointment Scheduling</h2>
-        <p className="text-gray-600">Select preferred date and time window</p>
+        <p className="text-gray-600">Select your preferred date and time</p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Date Selection */}
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Date *
-          </label>
-          <div className="relative">
-            <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <input
-              type="date"
-              name="date"
-              value={formData.date}
-              onChange={handleInputChange}
-              min={new Date().toISOString().split('T')[0]}
-              className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#160B53] ${
-                errors.date ? 'border-red-500' : 'border-gray-300'
-              }`}
-            />
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Calendar View */}
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+          <div className="p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h3 className="text-lg font-semibold text-gray-900">Select Date</h3>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() - 1))}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <ChevronLeft className="h-4 w-4 text-gray-600" />
+                </button>
+                <span className="text-sm font-medium text-gray-900 min-w-[120px] text-center">
+                  {currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setCurrentMonth(prev => new Date(prev.getFullYear(), prev.getMonth() + 1))}
+                  className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  <ChevronRight className="h-4 w-4 text-gray-600" />
+                </button>
           </div>
-          {errors.date && (
-            <p className="mt-1 text-sm text-red-600">{errors.date}</p>
-          )}
+            </div>
+
+            {/* Calendar Grid */}
+            <div className="grid grid-cols-7 gap-1 mb-4">
+              {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(day => (
+                <div key={day} className="p-2 text-center text-sm font-medium text-gray-500">
+                  {day}
+                </div>
+              ))}
+            </div>
+
+            <div className="grid grid-cols-7 gap-1">
+              {(getCalendarDays() || []).map((day, index) => {
+                if (!day || !currentMonth) return null;
+                
+                const isCurrentMonth = day.getMonth() === currentMonth.getMonth();
+                const isToday = isSameDay(day, new Date());
+                const isSelected = formData.date && isSameDay(day, new Date(formData.date));
+                const isPast = day < new Date().setHours(0, 0, 0, 0);
+                const isAvailable = isCurrentMonth && !isPast;
+
+                return (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => isAvailable && handleDateSelect(day)}
+                    disabled={!isAvailable}
+                    className={`
+                      p-2 text-sm rounded-lg transition-all duration-200
+                      ${!isCurrentMonth ? 'text-gray-300' : ''}
+                      ${isPast ? 'text-gray-300 cursor-not-allowed' : ''}
+                      ${isToday ? 'bg-[#160B53] text-white font-semibold' : ''}
+                      ${isSelected && !isToday ? 'bg-[#160B53]/10 text-[#160B53] font-semibold border-2 border-[#160B53]' : ''}
+                      ${isAvailable && !isToday && !isSelected ? 'hover:bg-gray-100 text-gray-900' : ''}
+                      ${!isAvailable ? 'cursor-not-allowed' : 'cursor-pointer'}
+                    `}
+                  >
+                    {day.getDate()}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
 
         {/* Time Selection */}
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+          <div className="p-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Select Time</h3>
+            
+            {formData.date ? (
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Time *
-          </label>
-          <div className="relative">
-            <Clock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
-            <select
-              name="time"
-              value={formData.time}
-              onChange={handleInputChange}
-              className={`w-full pl-10 pr-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-[#160B53] ${
-                errors.time ? 'border-red-500' : 'border-gray-300'
-              }`}
-            >
-              <option value="">Select a time</option>
-              {availableSlots.length > 0 ? (
-                availableSlots.map(slot => (
-                  <option 
+                <div className="mb-4 p-3 bg-[#160B53]/5 rounded-lg border border-[#160B53]/20">
+                  <p className="text-sm text-[#160B53] font-medium">
+                    Selected: {formData.date ? new Date(formData.date).toLocaleDateString('en-US', { 
+                      weekday: 'long', 
+                      year: 'numeric', 
+                      month: 'long', 
+                      day: 'numeric' 
+                    }) : 'No date selected'}
+                  </p>
+                </div>
+
+              {(availableSlots && availableSlots.length > 0) ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-gray-600 mb-3">
+                      Available time slots ({availableSlots?.length || 0})
+                    </p>
+                    <div className="grid grid-cols-2 gap-2 max-h-64 overflow-y-auto">
+                      {(availableSlots || []).map(slot => (
+                        <button
                     key={slot.time} 
-                    value={slot.time}
+                          type="button"
+                          onClick={() => handleTimeSelect(slot.time)}
+                          disabled={!slot.available}
+                          className={`
+                            p-3 text-sm rounded-lg border transition-all duration-200
+                            ${formData.time === slot.time 
+                              ? 'bg-[#160B53] text-white border-[#160B53] font-semibold' 
+                              : slot.available 
+                                ? 'bg-white text-gray-900 border-gray-300 hover:border-[#160B53] hover:bg-[#160B53]/5' 
+                                : 'bg-gray-50 text-gray-400 border-gray-200 cursor-not-allowed'
+                            }
+                          `}
                   >
                     {slot.display}
-                  </option>
-                ))
-              ) : (
-                <option value="" disabled>Loading time slots...</option>
-              )}
-            </select>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <Clock className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                    {availableSlots && availableSlots.length === 0 ? (
+                      <div>
+                        <p className="text-sm text-red-600 font-medium mb-1">Branch Closed</p>
+                        <p className="text-xs text-gray-500">No appointments available on this day</p>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-gray-500">Loading time slots...</p>
+                    )}
+                  </div>
+                )}
           </div>
-          {errors.time && (
-            <p className="mt-1 text-sm text-red-600">{errors.time}</p>
-          )}
-          {availableSlots.length > 0 && (
-            <p className="mt-1 text-sm text-gray-500">
-              {availableSlots.length} available time slots
-            </p>
-          )}
+            ) : (
+              <div className="text-center py-8">
+                <Calendar className="h-8 w-8 text-gray-400 mx-auto mb-2" />
+                <p className="text-sm text-gray-500">Please select a date first</p>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Available Stylists for Selected Date & Time */}
-      {formData.date && formData.time && (
+
+      {/* Branch Hours Info - Clean Professional Layout */}
+      <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+        <div className="px-6 py-4 border-b border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-[#160B53] rounded-lg flex items-center justify-center">
+              <Clock className="h-4 w-4 text-white" />
+          </div>
         <div>
-          <h3 className="text-lg font-medium text-gray-900 mb-3">
-            Available Stylists for {new Date(formData.date).toLocaleDateString()} at {formData.time}
+              <h3 className="text-lg font-semibold text-gray-900">
+                {branchInfo?.name || 'David\'s Salon'} Hours
           </h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {stylists.map(stylist => (
-              <div key={stylist.id} className="bg-white border border-gray-200 rounded-lg p-4">
-                <div className="flex items-center space-x-3">
-                  <div className="flex-shrink-0">
-                    <div className="w-10 h-10 bg-[#160B53] rounded-full flex items-center justify-center">
-                      <span className="text-white font-medium text-sm">
-                        {stylist.name.split(' ').map(n => n[0]).join('')}
-                      </span>
+              <p className="text-sm text-gray-600">Operating schedule</p>
                     </div>
                   </div>
-                  <div className="flex-1 min-w-0">
-                    <h4 className="text-sm font-medium text-gray-900 truncate">
-                      {stylist.name}
-                    </h4>
-                    <p className="text-sm text-gray-500 truncate">
-                      {stylist.specialty}
-                    </p>
-                    <div className="flex items-center mt-1">
-                      <div className="flex items-center">
-                        {[...Array(5)].map((_, i) => (
-                          <svg
-                            key={i}
-                            className={`w-3 h-3 ${
-                              i < Math.floor(stylist.rating) ? 'text-yellow-400' : 'text-gray-300'
-                            }`}
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                          >
-                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                          </svg>
-                        ))}
-                        <span className="ml-1 text-xs text-gray-500">
-                          {stylist.rating}
-                        </span>
+        </div>
+
+        <div className="p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {branchInfo?.operatingHours ? (
+              Object.entries(branchInfo.operatingHours).map(([day, hours]) => {
+                const isToday = new Date().toLocaleDateString('en-US', { weekday: 'long' }).toLowerCase() === day;
+                const isClosed = hours.toLowerCase().includes('closed') || hours.toLowerCase().includes('off');
+                
+                return (
+                  <div
+                    key={day}
+                    className={`p-4 rounded-lg border transition-all duration-200 ${
+                      isToday 
+                        ? 'bg-[#160B53]/5 border-[#160B53] border-2' 
+                        : 'bg-gray-50 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className={`font-medium ${
+                        isToday ? 'text-[#160B53]' : 'text-gray-900'
+                      }`}>
+                        {day.charAt(0).toUpperCase() + day.slice(1)}
+                      </h4>
+                      {isToday && (
+                        <div className="flex items-center gap-1">
+                          <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                          <span className="text-xs text-green-600 font-medium">Today</span>
                       </div>
+                      )}
                     </div>
+                    <p className={`text-sm ${
+                      isClosed 
+                        ? 'text-red-600' 
+                        : isToday 
+                          ? 'text-[#160B53] font-medium' 
+                          : 'text-gray-600'
+                    }`}>
+                      {isClosed ? 'Closed' : hours}
+                    </p>
                   </div>
-                  <div className="flex-shrink-0">
-                    <div className={`w-2 h-2 rounded-full ${
-                      stylist.available ? 'bg-green-400' : 'bg-red-400'
-                    }`}></div>
-                  </div>
-                </div>
+                );
+              })
+            ) : (
+              <div className="col-span-full grid grid-cols-1 sm:grid-cols-3 gap-4">
+                {[
+                  { day: 'Monday - Friday', hours: '9:00 AM - 6:00 PM' },
+                  { day: 'Saturday', hours: '9:00 AM - 5:00 PM' },
+                  { day: 'Sunday', hours: '10:00 AM - 4:00 PM' }
+                ].map((schedule, index) => (
+                  <div key={index} className="p-4 rounded-lg bg-gray-50 border border-gray-200">
+                    <h4 className="font-medium text-gray-900 mb-2">{schedule.day}</h4>
+                    <p className="text-sm text-gray-600">{schedule.hours}</p>
               </div>
             ))}
-          </div>
         </div>
       )}
-
-      {/* Branch Hours Info */}
-      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-        <div className="flex items-start">
-          <div className="flex-shrink-0">
-            <Clock className="h-5 w-5 text-blue-400" />
           </div>
-          <div className="ml-3">
-            <h3 className="text-sm font-medium text-blue-800">Branch Hours</h3>
-            <div className="mt-1 text-sm text-blue-700">
-              <p>Monday - Friday: 9:00 AM - 6:00 PM</p>
-              <p>Saturday: 9:00 AM - 5:00 PM</p>
-              <p>Sunday: 10:00 AM - 4:00 PM</p>
+
+          {/* Quick Info */}
+          <div className="mt-6 pt-4 border-t border-gray-200">
+            <div className="flex flex-wrap gap-6 text-sm text-gray-600">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-green-500 rounded-full"></div>
+                <span>Walk-ins welcome</span>
+          </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+                <span>Appointments recommended</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-purple-500 rounded-full"></div>
+                <span>Extended hours available</span>
+              </div>
             </div>
           </div>
         </div>
@@ -935,10 +1678,35 @@ export default function ReceptionistNewAppointment() {
   }, [serviceSearchTerm, selectedCategory]);
 
   const renderServiceAndStylistStep = () => {
+    // Show loading state only if services array is undefined (still loading)
+    // If services is an empty array, it means no services exist, so show empty state
+    if (services === undefined) {
+      return (
+        <div className="text-center py-8">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#160B53] mx-auto"></div>
+          <p className="mt-2 text-gray-600">Loading services...</p>
+        </div>
+      );
+    }
+
+    // If no services exist, show empty state
+    if (services.length === 0) {
+      return (
+        <div className="text-center py-8">
+          <p className="text-gray-600">No services available. Please add services first.</p>
+        </div>
+      );
+    }
+
     const selectedServices = getSelectedServices();
     
     // Filter services based on search and category
-    const filteredServices = services.filter(service => {
+    // Use staff services to derive which services are available (intersection)
+    const allowedServiceIds = new Set((staffServices || []).map(ss => ss.serviceId));
+    const servicesAvailableToStaff = (services || []).filter(svc => allowedServiceIds.has(svc.id));
+
+    const filteredServices = servicesAvailableToStaff.filter(service => {
+      if (!service || !service.name) return false;
       const matchesSearch = service.name.toLowerCase().includes(serviceSearchTerm.toLowerCase());
       const matchesCategory = selectedCategory === "all" || service.category === selectedCategory;
       return matchesSearch && matchesCategory;
@@ -1084,7 +1852,8 @@ export default function ReceptionistNewAppointment() {
             ) : (
               <div className="space-y-4">
                 {selectedServices.map(service => {
-                  const availableStylists = getAvailableStylistsForService(service.id);
+                  const allStylists = getAllStylistsForService(service.id);
+                  const availableStylists = allStylists.filter(s => s.isAvailableAtSelectedTime);
                   const assignedStylist = formData.stylists[service.id];
 
                   return (
@@ -1100,21 +1869,56 @@ export default function ReceptionistNewAppointment() {
                       </div>
 
                       <div className="space-y-2">
-                        {availableStylists.map(stylist => (
+                        {allStylists.map(stylist => {
+                          const isAvailable = stylist.isAvailableAtSelectedTime;
+                          const isAssigned = assignedStylist === stylist.id;
+                          
+                          return (
                           <button
                             key={stylist.id}
                             type="button"
-                            onClick={() => handleStylistAssign(service.id, stylist.id)}
-                            className={`w-full p-3 border rounded-lg text-left transition-colors ${
-                              assignedStylist === stylist.id
-                                ? 'border-[#160B53] bg-[#160B53]/5'
-                                : 'border-gray-200 hover:border-gray-300'
-                            }`}
-                          >
-                            <div className="font-medium text-gray-900">{stylist.name}</div>
-                            <div className="text-sm text-gray-500">{stylist.specialties.join(', ')}</div>
+                              onClick={() => isAvailable ? handleStylistAssign(service.id, stylist.id) : null}
+                              disabled={!isAvailable}
+                              className={`w-full flex items-center justify-between p-3 rounded-lg border transition-all ${
+                                isAssigned
+                                  ? 'bg-green-50 border-green-200 text-green-900'
+                                  : isAvailable
+                                  ? 'bg-white border-gray-200 hover:border-[#160B53] hover:bg-[#160B53]/5 text-gray-900'
+                                  : 'bg-gray-50 border-gray-200 text-gray-400 cursor-not-allowed'
+                              }`}
+                            >
+                              <div className="flex items-center space-x-3">
+                                <div className="flex-shrink-0">
+                                  {isAvailable ? (
+                                    <CheckCircle className="w-5 h-5 text-green-500" />
+                                  ) : (
+                                    <X className="w-5 h-5 text-red-500" />
+                                  )}
+                                </div>
+                                <div className="text-left">
+                                  <div className={`font-medium ${isAvailable ? 'text-gray-900' : 'text-gray-400'}`}>
+                                    {stylist.name}
+                                  </div>
+                                  <div className={`text-sm ${isAvailable ? 'text-gray-500' : 'text-gray-400'}`}>
+                                    {stylist.specialties.join(', ')}
+                                  </div>
+                                </div>
+                              </div>
+                              <div className="flex items-center space-x-2">
+                                {isAssigned && (
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                    Selected
+                                  </span>
+                                )}
+                                {!isAvailable && (
+                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                    Not Available
+                                  </span>
+                                )}
+                              </div>
                           </button>
-                        ))}
+                          );
+                        })}
                       </div>
 
                       {availableStylists.length === 0 && (
@@ -1222,9 +2026,11 @@ export default function ReceptionistNewAppointment() {
                 <div key={service.id} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-b-0">
                   <div>
                     <p className="font-medium text-gray-900">{service.name}</p>
-                    <p className="text-sm text-gray-500">with {assignedStylist?.name}</p>
+                    <p className="text-sm text-gray-500">
+                      with {assignedStylist?.name || 'No stylist assigned'}
+                    </p>
                   </div>
-                  <p className="font-medium text-[#160B53]">₱{service.price}</p>
+                  <p className="font-medium text-[#160B53]">₱{service.price || 0}</p>
                 </div>
               );
             })}
@@ -1252,7 +2058,7 @@ export default function ReceptionistNewAppointment() {
   );
 
   const steps = [
-    { number: 1, title: "Client Info", description: "Enter client details" },
+    { number: 1, title: "Client Info", description: "Search existing or enter new client" },
     { number: 2, title: "Date & Time", description: "Schedule appointment" },
     { number: 3, title: "Services & Stylists", description: "Select services and assign stylists" },
     { number: 4, title: "Review", description: "Confirm details" }

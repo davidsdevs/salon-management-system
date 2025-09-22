@@ -76,7 +76,6 @@ const ReceptionistSidebarWithHeader = ({ userInfo, pageTitle, children }) => {
             <div className="flex items-center mb-6">
               <img src="/logo.png" alt="David's Salon" className="h-8 w-auto" />
             </div>
-
             {/* Branch Info */}
             {branchInfo && (
               <div className="mb-6">

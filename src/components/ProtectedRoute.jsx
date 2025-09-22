@@ -22,7 +22,8 @@ export default function ProtectedRoute({ children, requiredRole = null, fallback
   if (!isAuthenticated) return <Navigate to={fallback} replace />;
 
   if (requiredRole && userRole !== requiredRole) {
-    const dashboardPath = `/${userRole}-dashboard`;
+    const normalized = (userRole || "").replace(/_/g, "-");
+    const dashboardPath = `/${normalized}-dashboard`;
     return <Navigate to={dashboardPath} replace />;
   }
 
