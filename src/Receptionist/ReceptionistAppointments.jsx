@@ -14,8 +14,10 @@ import {
   Trash2,
   CheckCircle,
   XCircle,
-  Eye
+  Eye,
+  Printer
 } from "lucide-react";
+import { appointmentService } from "../services/appointmentService.js";
 
 export default function ReceptionistAppointments() {
   const { userProfile, branchInfo } = useAuth();
@@ -27,6 +29,15 @@ export default function ReceptionistAppointments() {
   const [dateFilter, setDateFilter] = useState(new Date().toISOString().split('T')[0]);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [showModal, setShowModal] = useState(false);
+  const [showBulkPrintModal, setShowBulkPrintModal] = useState(false);
+  const [bulkPrintFilters, setBulkPrintFilters] = useState({
+    dateFrom: new Date().toISOString().split('T')[0],
+    dateTo: new Date().toISOString().split('T')[0],
+    status: 'all',
+    includeClientDetails: true,
+    includeServices: true,
+    includeStylists: true
+  });
 
   const userInfo = {
     name: userProfile?.firstName || "Receptionist",
@@ -35,74 +46,37 @@ export default function ReceptionistAppointments() {
     profileImage: userProfile?.profileImage || "./placeholder.svg"
   };
 
-  // Mock data - replace with actual Firestore queries
-  const mockAppointments = [
-    {
-      id: "1",
-      clientName: "Maria Santos",
-      clientPhone: "+63 912 345 6789",
-      service: "Haircut & Styling",
-      stylist: "Anna Reyes",
-      date: "2024-01-15",
-      time: "10:00 AM",
-      duration: 60,
-      status: "confirmed",
-      notes: "Regular customer, prefers short bob cut",
-      createdAt: "2024-01-10T09:00:00Z"
-    },
-    {
-      id: "2",
-      clientName: "John Dela Cruz",
-      clientPhone: "+63 917 123 4567",
-      service: "Hair Color",
-      stylist: "Sarah Johnson",
-      date: "2024-01-15",
-      time: "2:00 PM",
-      duration: 120,
-      status: "pending",
-      notes: "First time customer, wants highlights",
-      createdAt: "2024-01-14T14:30:00Z"
-    },
-    {
-      id: "3",
-      clientName: "Lisa Garcia",
-      clientPhone: "+63 918 987 6543",
-      service: "Manicure & Pedicure",
-      stylist: "Maria Lopez",
-      date: "2024-01-15",
-      time: "3:30 PM",
-      duration: 90,
-      status: "completed",
-      notes: "Bridal package preparation",
-      createdAt: "2024-01-12T11:15:00Z"
-    },
-    {
-      id: "4",
-      clientName: "Robert Wilson",
-      clientPhone: "+63 919 555 1234",
-      service: "Beard Trim",
-      stylist: "Mike Chen",
-      date: "2024-01-16",
-      time: "11:00 AM",
-      duration: 30,
-      status: "cancelled",
-      notes: "Client cancelled due to emergency",
-      createdAt: "2024-01-13T16:45:00Z"
-    }
-  ];
-
+  // Set up real-time listener for appointments
   useEffect(() => {
-    // Simulate loading
-    setTimeout(() => {
-      setAppointments(mockAppointments);
+    if (!branchInfo?.id) return;
+
+    const filters = {
+      status: statusFilter,
+      date: dateFilter
+    };
+
+    const unsubscribe = appointmentService.subscribeToAppointments(
+      branchInfo.id, 
+      (appointmentsData) => {
+        setAppointments(appointmentsData);
       setLoading(false);
-    }, 1000);
-  }, []);
+      },
+      filters
+    );
+
+    return () => unsubscribe();
+  }, [branchInfo?.id, statusFilter, dateFilter]);
 
   const filteredAppointments = appointments.filter(appointment => {
-    const matchesSearch = appointment.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         appointment.clientPhone.includes(searchTerm) ||
-                         appointment.service.toLowerCase().includes(searchTerm.toLowerCase());
+    const clientName = `${appointment.clientFirstName || ''} ${appointment.clientLastName || ''}`.trim();
+    const matchesSearch = clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         (appointment.clientPhone || '').includes(searchTerm) ||
+                         (appointment.services && appointment.services.some(service => 
+                           service.name?.toLowerCase().includes(searchTerm.toLowerCase())
+                         )) ||
+                         (appointment.stylists && appointment.stylists.some(stylist => 
+                           stylist.stylistName?.toLowerCase().includes(searchTerm.toLowerCase())
+                         ));
     const matchesStatus = statusFilter === "all" || appointment.status === statusFilter;
     const matchesDate = appointment.date === dateFilter;
     
@@ -129,14 +103,14 @@ export default function ReceptionistAppointments() {
     }
   };
 
-  const handleStatusChange = (appointmentId, newStatus) => {
-    setAppointments(prev => 
-      prev.map(apt => 
-        apt.id === appointmentId 
-          ? { ...apt, status: newStatus }
-          : apt
-      )
-    );
+  const handleStatusChange = async (appointmentId, newStatus) => {
+    try {
+      await appointmentService.updateAppointmentStatus(appointmentId, newStatus);
+      // The real-time listener will update the UI automatically
+    } catch (error) {
+      console.error('Error updating appointment status:', error);
+      // Show error message to user
+    }
   };
 
   const handleViewDetails = (appointment) => {
@@ -149,10 +123,563 @@ export default function ReceptionistAppointments() {
     console.log("Edit appointment:", appointment);
   };
 
-  const handleDeleteAppointment = (appointmentId) => {
+  const handleDeleteAppointment = async (appointmentId) => {
     if (window.confirm("Are you sure you want to delete this appointment?")) {
-      setAppointments(prev => prev.filter(apt => apt.id !== appointmentId));
+      try {
+        await appointmentService.deleteAppointment(appointmentId);
+        // The real-time listener will update the UI automatically
+      } catch (error) {
+        console.error('Error deleting appointment:', error);
+        // Show error message to user
+      }
     }
+  };
+
+  const handlePrintAppointment = (appointment) => {
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank', 'width=800,height=600');
+    
+    // Generate the HTML content for the report
+    const reportHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Appointment Report - David's Salon</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <style>
+          body {
+            font-family: 'Poppins', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: white;
+            color: #333;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 3px solid #160B53;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .salon-name {
+            font-size: 28px;
+            font-weight: 600;
+            color: #160B53;
+            margin: 0;
+          }
+          .report-title {
+            font-size: 18px;
+            color: #666;
+            margin: 10px 0 0 0;
+          }
+          .appointment-details {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 25px;
+            margin-bottom: 20px;
+          }
+          .detail-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #e9ecef;
+          }
+          .detail-row:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+          }
+          .detail-label {
+            font-weight: 600;
+            color: #160B53;
+            min-width: 120px;
+          }
+          .detail-value {
+            flex: 1;
+            text-align: right;
+          }
+          .services-section {
+            margin-top: 20px;
+          }
+          .service-item {
+            background: white;
+            border: 1px solid #e9ecef;
+            border-radius: 6px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          .service-name {
+            font-weight: 600;
+            color: #333;
+          }
+          .service-details {
+            color: #666;
+            font-size: 14px;
+          }
+          .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+          }
+          .status-confirmed { background: #d1f2eb; color: #00b894; }
+          .status-pending { background: #fff3cd; color: #f39c12; }
+          .status-completed { background: #cce7ff; color: #0984e3; }
+          .status-cancelled { background: #ffd6d6; color: #e74c3c; }
+          .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #e9ecef;
+            padding-top: 15px;
+          }
+          @media print {
+            body { margin: 0; padding: 15px; }
+            .header { margin-bottom: 20px; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1 class="salon-name">David's Salon</h1>
+          <p class="report-title">Appointment Report</p>
+        </div>
+
+        <div class="appointment-details">
+          <div class="detail-row">
+            <span class="detail-label">Appointment ID:</span>
+            <span class="detail-value">#${appointment.id.substring(0, 8).toUpperCase()}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Date & Time:</span>
+            <span class="detail-value">${appointment.date} at ${appointment.time}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Status:</span>
+            <span class="detail-value">
+              <span class="status-badge status-${appointment.status}">${appointment.status}</span>
+            </span>
+          </div>
+        </div>
+
+        <div class="appointment-details">
+          <h3 style="margin-top: 0; color: #160B53;">Client Information</h3>
+          <div class="detail-row">
+            <span class="detail-label">Name:</span>
+            <span class="detail-value">${appointment.clientFirstName || ''} ${appointment.clientLastName || ''}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Phone:</span>
+            <span class="detail-value">${appointment.clientPhone || 'N/A'}</span>
+          </div>
+          <div class="detail-row">
+            <span class="detail-label">Email:</span>
+            <span class="detail-value">${appointment.clientEmail || 'N/A'}</span>
+          </div>
+        </div>
+
+        <div class="services-section">
+          <h3 style="color: #160B53; margin-bottom: 15px;">Services & Stylists</h3>
+          ${appointment.services?.map((service, index) => {
+            const stylist = appointment.stylists?.[index];
+            return `
+              <div class="service-item">
+                <div>
+                  <div class="service-name">${service.name}</div>
+                  <div class="service-details">
+                    Duration: ${service.duration} min • Price: ₱${service.price}
+                    ${stylist ? `<br>Stylist: ${stylist.stylistName}` : ''}
+                  </div>
+                </div>
+              </div>
+            `;
+          }).join('') || '<p>No services assigned</p>'}
+        </div>
+
+        ${appointment.notes ? `
+          <div class="appointment-details">
+            <h3 style="margin-top: 0; color: #160B53;">Notes</h3>
+            <p style="margin: 0; font-style: italic;">${appointment.notes}</p>
+          </div>
+        ` : ''}
+
+        <div class="appointment-details">
+          <div class="detail-row">
+            <span class="detail-label">Total Cost:</span>
+            <span class="detail-value" style="font-size: 18px; font-weight: 600; color: #160B53;">
+              ₱${appointment.totalCost || 0}
+            </span>
+          </div>
+        </div>
+
+        <div class="footer">
+          <p>Generated on ${new Date().toLocaleString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })}</p>
+          <p>David's Salon - ${branchInfo?.name || 'Branch Name'}</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Write the HTML content to the new window
+    printWindow.document.write(reportHTML);
+    printWindow.document.close();
+
+    // Wait for the content to load, then trigger print
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 250);
+    };
+  };
+
+  const handleBulkPrint = () => {
+    // Filter appointments based on bulk print filters
+    const filteredAppointments = appointments.filter(appointment => {
+      const appointmentDate = new Date(appointment.date);
+      const fromDate = new Date(bulkPrintFilters.dateFrom);
+      const toDate = new Date(bulkPrintFilters.dateTo);
+      
+      const matchesDateRange = appointmentDate >= fromDate && appointmentDate <= toDate;
+      const matchesStatus = bulkPrintFilters.status === 'all' || appointment.status === bulkPrintFilters.status;
+      
+      return matchesDateRange && matchesStatus;
+    });
+
+    if (filteredAppointments.length === 0) {
+      alert('No appointments found for the selected criteria.');
+      return;
+    }
+
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank', 'width=1000,height=800');
+    
+    // Generate the HTML content for the bulk report
+    const reportHTML = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>Appointments Report - David's Salon</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+        <style>
+          body {
+            font-family: 'Poppins', Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: white;
+            color: #333;
+            font-size: 14px;
+          }
+          .header {
+            text-align: center;
+            border-bottom: 3px solid #160B53;
+            padding-bottom: 20px;
+            margin-bottom: 30px;
+          }
+          .salon-name {
+            font-size: 32px;
+            font-weight: 600;
+            color: #160B53;
+            margin: 0;
+          }
+          .report-title {
+            font-size: 20px;
+            color: #666;
+            margin: 10px 0 0 0;
+          }
+          .report-info {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 20px;
+          }
+          .info-item {
+            text-align: center;
+          }
+          .info-label {
+            font-size: 12px;
+            color: #666;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          .info-value {
+            font-size: 18px;
+            font-weight: 600;
+            color: #160B53;
+            margin-top: 5px;
+          }
+          .appointments-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 30px;
+            background: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+          }
+          .appointments-table th {
+            background: #160B53;
+            color: white;
+            padding: 15px 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          .appointments-table td {
+            padding: 12px;
+            border-bottom: 1px solid #e9ecef;
+            vertical-align: top;
+          }
+          .appointments-table tr:nth-child(even) {
+            background: #f8f9fa;
+          }
+          .appointments-table tr:hover {
+            background: #e3f2fd;
+          }
+          .client-name {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 4px;
+          }
+          .client-contact {
+            font-size: 12px;
+            color: #666;
+          }
+          .service-list {
+            font-size: 13px;
+            line-height: 1.4;
+          }
+          .service-item {
+            margin-bottom: 4px;
+            padding: 2px 0;
+          }
+          .stylist-list {
+            font-size: 13px;
+            color: #666;
+          }
+          .status-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+          }
+          .status-confirmed { background: #d1f2eb; color: #00b894; }
+          .status-pending { background: #fff3cd; color: #f39c12; }
+          .status-completed { background: #cce7ff; color: #0984e3; }
+          .status-cancelled { background: #ffd6d6; color: #e74c3c; }
+          .summary-section {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 20px;
+            margin-top: 30px;
+          }
+          .summary-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #160B53;
+            margin-bottom: 15px;
+          }
+          .summary-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+          }
+          .summary-item {
+            text-align: center;
+            padding: 15px;
+            background: white;
+            border-radius: 6px;
+            border: 1px solid #e9ecef;
+          }
+          .summary-number {
+            font-size: 24px;
+            font-weight: 600;
+            color: #160B53;
+            margin-bottom: 5px;
+          }
+          .summary-label {
+            font-size: 12px;
+            color: #666;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          .footer {
+            margin-top: 30px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #e9ecef;
+            padding-top: 15px;
+          }
+          @media print {
+            body { margin: 0; padding: 10px; }
+            .header { margin-bottom: 20px; }
+            .appointments-table { font-size: 12px; }
+            .appointments-table th, .appointments-table td { padding: 8px 6px; }
+          }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1 class="salon-name">David's Salon</h1>
+          <p class="report-title">Appointments Report</p>
+        </div>
+
+        <div class="report-info">
+          <div class="info-item">
+            <div class="info-label">Report Period</div>
+            <div class="info-value">${bulkPrintFilters.dateFrom} to ${bulkPrintFilters.dateTo}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Total Appointments</div>
+            <div class="info-value">${filteredAppointments.length}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Status Filter</div>
+            <div class="info-value">${bulkPrintFilters.status === 'all' ? 'All Status' : bulkPrintFilters.status}</div>
+          </div>
+          <div class="info-item">
+            <div class="info-label">Branch</div>
+            <div class="info-value">${branchInfo?.name || 'Branch Name'}</div>
+          </div>
+        </div>
+
+        <table class="appointments-table">
+          <thead>
+            <tr>
+              <th>Client</th>
+              <th>Date & Time</th>
+              <th>Services</th>
+              ${bulkPrintFilters.includeStylists ? '<th>Stylists</th>' : ''}
+              <th>Status</th>
+              <th>Total Cost</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${filteredAppointments.map(appointment => `
+              <tr>
+                <td>
+                  <div class="client-name">${appointment.clientFirstName || ''} ${appointment.clientLastName || ''}</div>
+                  ${bulkPrintFilters.includeClientDetails ? `
+                    <div class="client-contact">
+                      ${appointment.clientPhone || 'No phone'}<br>
+                      ${appointment.clientEmail || 'No email'}
+                    </div>
+                  ` : ''}
+                </td>
+                <td>
+                  <div style="font-weight: 600;">${appointment.date}</div>
+                  <div style="color: #666; font-size: 12px;">${appointment.time}</div>
+                </td>
+                <td>
+                  ${bulkPrintFilters.includeServices ? `
+                    <div class="service-list">
+                      ${appointment.services?.map(service => `
+                        <div class="service-item">
+                          <strong>${service.name}</strong><br>
+                          <span style="color: #666;">${service.duration} min • ₱${service.price}</span>
+                        </div>
+                      `).join('') || 'No services'}
+                    </div>
+                  ` : 'Services included'}
+                </td>
+                ${bulkPrintFilters.includeStylists ? `
+                  <td>
+                    <div class="stylist-list">
+                      ${appointment.stylists?.map(stylist => stylist.stylistName).join(', ') || 'No stylist assigned'}
+                    </div>
+                  </td>
+                ` : ''}
+                <td>
+                  <span class="status-badge status-${appointment.status}">${appointment.status}</span>
+                </td>
+                <td style="font-weight: 600; color: #160B53;">₱${appointment.totalCost || 0}</td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+
+        <div class="summary-section">
+          <h3 class="summary-title">Summary Statistics</h3>
+          <div class="summary-grid">
+            <div class="summary-item">
+              <div class="summary-number">${filteredAppointments.filter(apt => apt.status === 'confirmed').length}</div>
+              <div class="summary-label">Confirmed</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-number">${filteredAppointments.filter(apt => apt.status === 'pending').length}</div>
+              <div class="summary-label">Pending</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-number">${filteredAppointments.filter(apt => apt.status === 'completed').length}</div>
+              <div class="summary-label">Completed</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-number">${filteredAppointments.filter(apt => apt.status === 'cancelled').length}</div>
+              <div class="summary-label">Cancelled</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-number">₱${filteredAppointments.reduce((total, apt) => total + (apt.totalCost || 0), 0)}</div>
+              <div class="summary-label">Total Revenue</div>
+            </div>
+            <div class="summary-item">
+              <div class="summary-number">${filteredAppointments.length > 0 ? Math.round(filteredAppointments.reduce((total, apt) => total + (apt.totalCost || 0), 0) / filteredAppointments.length) : 0}</div>
+              <div class="summary-label">Avg. Value</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="footer">
+          <p>Generated on ${new Date().toLocaleString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          })}</p>
+          <p>David's Salon - ${branchInfo?.name || 'Branch Name'}</p>
+        </div>
+      </body>
+      </html>
+    `;
+
+    // Write the HTML content to the new window
+    printWindow.document.write(reportHTML);
+    printWindow.document.close();
+
+    // Wait for the content to load, then trigger print
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 500);
+    };
+
+    setShowBulkPrintModal(false);
   };
 
   return (
@@ -167,13 +694,22 @@ export default function ReceptionistAppointments() {
             <h1 className="text-2xl font-semibold text-gray-900">Appointments</h1>
             <p className="text-gray-600">Manage salon appointments and bookings</p>
           </div>
-          <button 
-            onClick={() => navigate("/receptionist-appointments/new")}
-            className="flex items-center gap-2 bg-[#160B53] text-white px-4 py-2 rounded-lg hover:bg-[#0f073d] transition-colors"
-          >
-            <Plus className="w-4 h-4" />
-            New Appointment
-          </button>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setShowBulkPrintModal(true)}
+              className="flex items-center gap-2 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition-colors"
+            >
+              <Printer className="w-4 h-4" />
+              Print All
+            </button>
+            <button 
+              onClick={() => navigate("/receptionist-appointments/new")}
+              className="flex items-center gap-2 bg-[#160B53] text-white px-4 py-2 rounded-lg hover:bg-[#0f073d] transition-colors"
+            >
+              <Plus className="w-4 h-4" />
+              New Appointment
+            </button>
+          </div>
         </div>
 
         {/* Overview Dashboard */}
@@ -383,7 +919,7 @@ export default function ReceptionistAppointments() {
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div>
                           <div className="text-sm font-medium text-gray-900">
-                            {appointment.clientName}
+                            {`${appointment.clientFirstName || ''} ${appointment.clientLastName || ''}`.trim()}
                           </div>
                           <div className="text-sm text-gray-500 flex items-center gap-1">
                             <Phone className="w-3 h-3" />
@@ -392,11 +928,17 @@ export default function ReceptionistAppointments() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{appointment.service}</div>
-                        <div className="text-sm text-gray-500">{appointment.duration} min</div>
+                        <div className="text-sm text-gray-900">
+                          {appointment.services?.map(service => service.name).join(', ') || 'No services'}
+                        </div>
+                        <div className="text-sm text-gray-500">
+                          {appointment.services?.reduce((total, service) => total + (service.duration || 0), 0) || 0} min
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">{appointment.stylist}</div>
+                        <div className="text-sm text-gray-900">
+                          {appointment.stylists?.map(stylist => stylist.stylistName).join(', ') || 'No stylist assigned'}
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="text-sm text-gray-900">{appointment.time}</div>
@@ -416,6 +958,13 @@ export default function ReceptionistAppointments() {
                             title="View Details"
                           >
                             <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => handlePrintAppointment(appointment)}
+                            className="text-green-600 hover:text-green-800"
+                            title="Print Report"
+                          >
+                            <Printer className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleEditAppointment(appointment)}
@@ -492,19 +1041,29 @@ export default function ReceptionistAppointments() {
             <div className="space-y-4">
               <div>
                 <label className="text-sm font-medium text-gray-500">Client</label>
-                <p className="text-gray-900">{selectedAppointment.clientName}</p>
+                <p className="text-gray-900">
+                  {`${selectedAppointment.clientFirstName || ''} ${selectedAppointment.clientLastName || ''}`.trim()}
+                </p>
                 <p className="text-sm text-gray-600">{selectedAppointment.clientPhone}</p>
               </div>
               
               <div>
-                <label className="text-sm font-medium text-gray-500">Service</label>
-                <p className="text-gray-900">{selectedAppointment.service}</p>
-                <p className="text-sm text-gray-600">{selectedAppointment.duration} minutes</p>
+                <label className="text-sm font-medium text-gray-500">Services</label>
+                <div className="space-y-1">
+                  {selectedAppointment.services?.map((service, index) => (
+                    <div key={index} className="flex justify-between">
+                      <span className="text-gray-900">{service.name}</span>
+                      <span className="text-sm text-gray-600">{service.duration} min</span>
+                    </div>
+                  )) || <p className="text-gray-900">No services</p>}
+                </div>
               </div>
               
               <div>
-                <label className="text-sm font-medium text-gray-500">Stylist</label>
-                <p className="text-gray-900">{selectedAppointment.stylist}</p>
+                <label className="text-sm font-medium text-gray-500">Stylists</label>
+                <p className="text-gray-900">
+                  {selectedAppointment.stylists?.map(stylist => stylist.stylistName).join(', ') || 'No stylist assigned'}
+                </p>
               </div>
               
               <div>
@@ -536,6 +1095,13 @@ export default function ReceptionistAppointments() {
                 Close
               </button>
               <button
+                onClick={() => handlePrintAppointment(selectedAppointment)}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2"
+              >
+                <Printer className="w-4 h-4" />
+                Print Report
+              </button>
+              <button
                 onClick={() => {
                   handleEditAppointment(selectedAppointment);
                   setShowModal(false);
@@ -548,7 +1114,113 @@ export default function ReceptionistAppointments() {
           </div>
         </div>
       )}
+
+      {/* Bulk Print Modal */}
+      {showBulkPrintModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-4">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Print All Appointments</h3>
+              <button
+                onClick={() => setShowBulkPrintModal(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <XCircle className="w-6 h-6" />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Date Range</label>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">From</label>
+                    <input
+                      type="date"
+                      value={bulkPrintFilters.dateFrom}
+                      onChange={(e) => setBulkPrintFilters(prev => ({ ...prev, dateFrom: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#160B53]"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">To</label>
+                    <input
+                      type="date"
+                      value={bulkPrintFilters.dateTo}
+                      onChange={(e) => setBulkPrintFilters(prev => ({ ...prev, dateTo: e.target.value }))}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#160B53]"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Status Filter</label>
+                <select
+                  value={bulkPrintFilters.status}
+                  onChange={(e) => setBulkPrintFilters(prev => ({ ...prev, status: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#160B53]"
+                >
+                  <option value="all">All Status</option>
+                  <option value="pending">Pending</option>
+                  <option value="confirmed">Confirmed</option>
+                  <option value="completed">Completed</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">Include in Report</label>
+                <div className="space-y-2">
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={bulkPrintFilters.includeClientDetails}
+                      onChange={(e) => setBulkPrintFilters(prev => ({ ...prev, includeClientDetails: e.target.checked }))}
+                      className="mr-2"
+                    />
+                    <span className="text-sm text-gray-700">Client Contact Details</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={bulkPrintFilters.includeServices}
+                      onChange={(e) => setBulkPrintFilters(prev => ({ ...prev, includeServices: e.target.checked }))}
+                      className="mr-2"
+                    />
+                    <span className="text-sm text-gray-700">Service Details</span>
+                  </label>
+                  <label className="flex items-center">
+                    <input
+                      type="checkbox"
+                      checked={bulkPrintFilters.includeStylists}
+                      onChange={(e) => setBulkPrintFilters(prev => ({ ...prev, includeStylists: e.target.checked }))}
+                      className="mr-2"
+                    />
+                    <span className="text-sm text-gray-700">Stylist Information</span>
+                  </label>
+                </div>
+              </div>
+            </div>
+            
+            <div className="flex gap-2 mt-6">
+              <button
+                onClick={() => setShowBulkPrintModal(false)}
+                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleBulkPrint}
+                className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 flex items-center justify-center gap-2"
+              >
+                <Printer className="w-4 h-4" />
+                Generate Report
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </SidebarWithHeader>
   );
 }
-

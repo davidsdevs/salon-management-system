@@ -33,8 +33,12 @@ import ReceptionistDashboard from "./Receptionist/ReceptionistDashboard.jsx";
 import ReceptionistAppointments from "./Receptionist/ReceptionistAppointments.jsx";
 import ReceptionistNewAppointment from "./Receptionist/ReceptionistNewAppointment.jsx";
 
+
 // BRANCH MANAGER PAGES
-import BranchManagerDashboard from "./BranchManager/BranchManagerDashboard.jsx";
+import BranchManagerDashboard from "./BranchManager/BranchManagerDashboard";
+import BranchManagerAppointments from "./BranchManager/BranchManagerAppointments";
+import BranchManagerSchedule from "./BranchManager/BranchManagerSchedule";
+import BranchManagerSettings from "./BranchManager/BranchManagerSettings";
 
 // BRANCH ADMIN PAGES
 import BranchAdminDashboard from "./BranchAdmin/BranchAdminDashboard";
@@ -63,14 +67,14 @@ function HomePageWrapper() {
   useEffect(() => {
     if (isAuthenticated && userRole) {
       const roleMap = {
-        client: "client-dashboard",
-        receptionist: "receptionist-dashboard",
-        inventory_controller: "inventory-dashboard",
-        branch_manager: "branch-manager-dashboard",
-        branch_admin: "branch-admin-dashboard",
-        operational_manager: "operational-dashboard",
-        stylist: "stylist-dashboard",
-        super_admin: "system-admin-dashboard",
+        "client": "client-dashboard",
+        "receptionist": "receptionist-dashboard", 
+        "inventory-controller": "inventory-dashboard",
+        "branch-manager": "branch-manager-dashboard",
+        "branch-admin": "branch-admin-dashboard",
+        "operational-manager": "operational-dashboard",
+        "stylist": "stylist-dashboard",
+        "super-admin": "systemadmin-dashboard"
       };
       const dashboardPath = `/${roleMap[userRole] || "client-dashboard"}`;
       console.log("Redirecting authenticated user to:", dashboardPath);
@@ -248,12 +252,26 @@ function AppRoutes() {
         }
       />
 
+      {/* Test Routes */}
+      <Route
+        path="/test-appointments"
+        element={<TestAppointmentModule />}
+      />
+      <Route
+        path="/seed-data"
+        element={<SeedDataComponent />}
+      />
+      <Route
+        path="/seed-stylists"
+        element={<SeedStylistsPage />}
+      />
+
       {/* Protected Inventory Controller Routes */}
       <Route
         path="/inventory-dashboard"
         element={
-          <ProtectedRoute requiredRole="inventory_controller">
-            <InventoryDashboard />
+            <ProtectedRoute requiredRole="inventory_controller">
+            <InventoryDashboard/>
           </ProtectedRoute>
         }
       />
@@ -290,12 +308,36 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
+      <Route
+        path="/branch-manager-appointments"
+        element={
+            <ProtectedRoute requiredRole="branch_manager">
+            <BranchManagerAppointments />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/branch-manager-schedule"
+        element={
+            <ProtectedRoute requiredRole="branch_manager">
+            <BranchManagerSchedule />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/branch-manager-settings"
+        element={
+            <ProtectedRoute requiredRole="branch_manager">
+            <BranchManagerSettings />
+          </ProtectedRoute>
+        }
+      />
 
       {/* Protected Branch Admin Routes */}
       <Route
         path="/branch-admin-dashboard"
         element={
-          <ProtectedRoute requiredRole="branch_admin">
+            <ProtectedRoute requiredRole="branch_admin">
             <BranchAdminDashboard />
           </ProtectedRoute>
         }
@@ -305,7 +347,7 @@ function AppRoutes() {
       <Route
         path="/operational-dashboard"
         element={
-          <ProtectedRoute requiredRole="operational_manager">
+            <ProtectedRoute requiredRole="operational_manager">
             <OperationalManagerDashboard />
           </ProtectedRoute>
         }
@@ -325,7 +367,7 @@ function AppRoutes() {
       <Route
         path="/system-admin-dashboard"
         element={
-          <ProtectedRoute requiredRole="super_admin">
+            <ProtectedRoute requiredRole="super_admin">
             <SuperAdminDashboard />
           </ProtectedRoute>
         }

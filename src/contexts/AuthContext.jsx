@@ -52,9 +52,11 @@ export function AuthProvider({ children }) {
             // Fetch branch information for staff users
             if (data.staffData?.branchId) {
               try {
+                console.log('🔍 Fetching branch info for branchId:', data.staffData.branchId);
                 const branchDoc = await getDoc(doc(db, "branches", data.staffData.branchId));
                 if (branchDoc.exists()) {
                   const branchData = { id: branchDoc.id, ...branchDoc.data() };
+                  console.log('✅ Branch info loaded:', branchData);
                   setBranchInfo(branchData);
                   
                   // Store branch info in same storage as user
@@ -63,11 +65,14 @@ export function AuthProvider({ children }) {
                   } else {
                     sessionStorage.setItem("branchInfo", JSON.stringify(branchData));
                   }
+                } else {
+                  console.log('❌ Branch document not found for ID:', data.staffData.branchId);
                 }
               } catch (branchError) {
                 console.error("Error fetching branch info:", branchError);
               }
             } else {
+              console.log('⚠️ No staffData.branchId found for user:', data.role);
               // Clear branch info for non-staff users
               setBranchInfo(null);
               localStorage.removeItem("branchInfo");
@@ -111,9 +116,11 @@ export function AuthProvider({ children }) {
           // Fetch branch information for staff users
           if (data.staffData?.branchId) {
             try {
-              const branchDoc = await getDoc(doc(db, "branches", data.staffData.b765432ranchId));
+              console.log('🔍 RefreshUserRole - Fetching branch info for branchId:', data.staffData.branchId);
+              const branchDoc = await getDoc(doc(db, "branches", data.staffData.branchId));
               if (branchDoc.exists()) {
                 const branchData = { id: branchDoc.id, ...branchDoc.data() };
+                console.log('✅ RefreshUserRole - Branch info loaded:', branchData);
                 setBranchInfo(branchData);
                 
                 // Store branch info in same storage as user
@@ -122,11 +129,14 @@ export function AuthProvider({ children }) {
                 } else {
                   sessionStorage.setItem("branchInfo", JSON.stringify(branchData));
                 }
+              } else {
+                console.log('❌ RefreshUserRole - Branch document not found for ID:', data.staffData.branchId);
               }
             } catch (branchError) {
               console.error("Error fetching branch info:", branchError);
             }
           } else {
+            console.log('⚠️ RefreshUserRole - No staffData.branchId found for user:', data.role);
             setBranchInfo(null);
             localStorage.removeItem("branchInfo");
             sessionStorage.removeItem("branchInfo");
@@ -190,11 +200,11 @@ export function AuthProvider({ children }) {
     isClient: userRole === "client",
     isStylist: userRole === "stylist",
     isReceptionist: userRole === "receptionist",
-    isBranchManager: userRole === "branch-manager",
-    isInventoryController: userRole === "inventory-controller",
-    isOperationalManager: userRole === "operational-manager",
-    isBranchAdmin: userRole === "branch-admin",
-    isSuperAdmin: userRole === "super-admin",
+    isBranchManager: userRole === "branch_manager",
+    isInventoryController: userRole === "inventory_controller",
+    isOperationalManager: userRole === "operational_manager",
+    isBranchAdmin: userRole === "branch_admin",
+    isSuperAdmin: userRole === "super_admin",
     refreshUserRole,
     logout,
   };
