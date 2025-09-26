@@ -13,7 +13,11 @@ import {
   User 
 } from "lucide-react"
 
-const InventoryControllerSidebarWithHeader = ({ userInfo, pageTitle, children }) => {
+const InventoryControllerSidebarWithHeader = ({ 
+  userInfo = { profileImage: "/placeholder.svg", name: "Guest", badge: "Inventory Controller" }, 
+  pageTitle, 
+  children 
+}) => {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [activeItem, setActiveItem] = useState("")
   const navigate = useNavigate()
@@ -96,18 +100,18 @@ const InventoryControllerSidebarWithHeader = ({ userInfo, pageTitle, children })
               </div>
             )}
 
-            {/* User Profile */}
+            {/* User Profile (safe fallback) */}
             <div className="flex items-center space-x-3">
               <div className="w-12 h-12 rounded-full bg-gray-300 overflow-hidden">
                 <img
-                  src={userInfo.profileImage || "/placeholder.svg"}
-                  alt={userInfo.name}
+                  src={userInfo?.profileImage || "/placeholder.svg"}
+                  alt={userInfo?.name || "User"}
                   className="w-full h-full object-cover"
                 />
               </div>
               <div className="flex-1">
-                <h3 className="font-semibold text-gray-900">{userInfo.name}</h3>
-                <p className="text-sm text-gray-500">{userInfo.badge}</p>
+                <h3 className="font-semibold text-gray-900">{userInfo?.name || "Guest"}</h3>
+                <p className="text-sm text-gray-500">{userInfo?.badge || "Inventory Controller"}</p>
               </div>
             </div>
           </div>

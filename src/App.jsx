@@ -33,9 +33,8 @@ import ReceptionistDashboard from "./Receptionist/ReceptionistDashboard.jsx";
 import ReceptionistAppointments from "./Receptionist/ReceptionistAppointments.jsx";
 import ReceptionistNewAppointment from "./Receptionist/ReceptionistNewAppointment.jsx";
 
-
 // BRANCH MANAGER PAGES
-import BranchManagerDashboard from "./BranchManager/BranchManagerDashboard";
+import BranchManagerDashboard from "./BranchManager/BranchManagerDashboard.jsx";
 
 // BRANCH ADMIN PAGES
 import BranchAdminDashboard from "./BranchAdmin/BranchAdminDashboard";
@@ -45,12 +44,14 @@ import OperationalManagerDashboard from "./OperationalManager/OperationalDashboa
 
 // SYSTEM ADMIN PAGES
 import SuperAdminDashboard from "./SystemAdmin/SuperAdminDashboard";
+
 // Inventory Controller PAGES
 import InventoryDashboard from "./InventoryController/InventoryDashboard";
-import InventoryProduct from "./InventoryController/InventoryProduct";
-import InventoryProductDetails from "./InventoryController/InventoryProductDetails";
-import InventoryStockManagement from "./InventoryController/InventoryStockManagement";
-import InventorySuppliers from "./InventoryController/InventorySuppliers";
+import InventoryProducts from "./InventoryController/InventoryProducts";
+import InventoryProductsDetails from "./InventoryController/InventoryProductsDetails";
+import InventoryStocks from "./InventoryController/InventoryStocks";
+
+
 // Stylist PAGES
 import StylistDashboard from "./Stylist/StylistDashboard";
 
@@ -61,25 +62,22 @@ function HomePageWrapper() {
 
   useEffect(() => {
     if (isAuthenticated && userRole) {
-      // Map role names to correct dashboard paths
       const roleMap = {
-        "client": "client-dashboard",
-        "receptionist": "receptionist-dashboard", 
-        "inventory-controller": "inventory-dashboard",
-        "branch-manager": "branch-manager-dashboard",
-        "branch-admin": "branch-admin-dashboard",
-        "operational-manager": "operational-dashboard",
-        "stylist": "stylist-dashboard",
-        "super-admin": "systemadmin-dashboard"
+        client: "client-dashboard",
+        receptionist: "receptionist-dashboard",
+        inventory_controller: "inventory-dashboard",
+        branch_manager: "branch-manager-dashboard",
+        branch_admin: "branch-admin-dashboard",
+        operational_manager: "operational-dashboard",
+        stylist: "stylist-dashboard",
+        super_admin: "system-admin-dashboard",
       };
-      
       const dashboardPath = `/${roleMap[userRole] || "client-dashboard"}`;
-    console.log("Redirecting authenticated user to:", dashboardPath);
-    navigate(dashboardPath, { replace: true });
+      console.log("Redirecting authenticated user to:", dashboardPath);
+      navigate(dashboardPath, { replace: true });
     }
   }, [isAuthenticated, userRole, navigate]);
 
-  // Show homepage for non-authenticated users
   return (
     <div className="min-h-screen bg-white">
       <Navigation />
@@ -105,10 +103,7 @@ function AppRoutes() {
   return (
     <Routes>
       {/* Landing Page Routes */}
-      <Route
-        path="/"
-        element={<HomePageWrapper />}
-      />
+      <Route path="/" element={<HomePageWrapper />} />
       <Route
         path="/about"
         element={
@@ -133,36 +128,15 @@ function AppRoutes() {
           </div>
         }
       />
-      
+
       {/* Branch Routes */}
-      <Route
-        path="/branch/:slug"
-        element={<BranchPage />}
-      />
-      <Route
-        path="/branch/:slug/services"
-        element={<BranchServicesPage />}
-      />
-      <Route
-        path="/branch/:slug/services/:serviceId"
-        element={<ServiceDetailPage />}
-      />
-      <Route
-        path="/branch/:slug/stylists"
-        element={<BranchStylistsPage />}
-      />
-      <Route
-        path="/branch/:slug/stylists/:stylistId"
-        element={<StylistProfilePage />}
-      />
-      <Route
-        path="/branch/:slug/gallery"
-        element={<BranchGalleryPage />}
-      />
-      <Route
-        path="/branch/:slug/products"
-        element={<BranchProductsPage />}
-      />
+      <Route path="/branch/:slug" element={<BranchPage />} />
+      <Route path="/branch/:slug/services" element={<BranchServicesPage />} />
+      <Route path="/branch/:slug/services/:serviceId" element={<ServiceDetailPage />} />
+      <Route path="/branch/:slug/stylists" element={<BranchStylistsPage />} />
+      <Route path="/branch/:slug/stylists/:stylistId" element={<StylistProfilePage />} />
+      <Route path="/branch/:slug/gallery" element={<BranchGalleryPage />} />
+      <Route path="/branch/:slug/products" element={<BranchProductsPage />} />
 
       {/* Auth Routes */}
       <Route
@@ -223,7 +197,6 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      
       <Route
         path="/client-appointments"
         element={
@@ -232,7 +205,6 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      {/* Book Appointment as Child Route */}
       <Route
         path="/client-appointments/book"
         element={
@@ -249,13 +221,13 @@ function AppRoutes() {
           </ProtectedRoute>
         }
       />
-      
+
       {/* Protected Receptionist Routes */}
       <Route
         path="/receptionist-dashboard"
         element={
           <ProtectedRoute requiredRole="receptionist">
-            <ReceptionistDashboard/>
+            <ReceptionistDashboard />
           </ProtectedRoute>
         }
       />
@@ -263,7 +235,7 @@ function AppRoutes() {
         path="/receptionist-appointments"
         element={
           <ProtectedRoute requiredRole="receptionist">
-            <ReceptionistAppointments/>
+            <ReceptionistAppointments />
           </ProtectedRoute>
         }
       />
@@ -271,7 +243,7 @@ function AppRoutes() {
         path="/receptionist-appointments/new"
         element={
           <ProtectedRoute requiredRole="receptionist">
-            <ReceptionistNewAppointment/>
+            <ReceptionistNewAppointment />
           </ProtectedRoute>
         }
       />
@@ -280,40 +252,32 @@ function AppRoutes() {
       <Route
         path="/inventory-dashboard"
         element={
-          <ProtectedRoute requiredRole="inventory-controller">
-            <InventoryDashboard/>
+          <ProtectedRoute requiredRole="inventory_controller">
+            <InventoryDashboard />
           </ProtectedRoute>
         }
       />
       <Route
         path="/inventory-products"
         element={
-          <ProtectedRoute requiredRole="inventory-controller">
-            <InventoryProduct/>
+          <ProtectedRoute requiredRole="inventory_controller">
+            <InventoryProducts/>
           </ProtectedRoute>
         }
       />
-      <Route
-        path="/inventory-products/details/:id"
+     <Route
+        path="/inventory-products/:branchProductId"
         element={
-          <ProtectedRoute requiredRole="inventory-controller">
-            <InventoryProductDetails/>
+          <ProtectedRoute requiredRole="inventory_controller">
+            <InventoryProductsDetails />
           </ProtectedRoute>
         }
       />
-      <Route
+     <Route
         path="/inventory-stock"
         element={
-          <ProtectedRoute requiredRole="inventory-controller">
-            <InventoryStockManagement/>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/inventory-suppliers"
-        element={
-          <ProtectedRoute requiredRole="inventory-controller">
-            <InventorySuppliers/>
+          <ProtectedRoute requiredRole="inventory_controller">
+            <InventoryStocks/>
           </ProtectedRoute>
         }
       />
@@ -321,7 +285,7 @@ function AppRoutes() {
       <Route
         path="/branch-manager-dashboard"
         element={
-          <ProtectedRoute requiredRole="branch-manager">
+          <ProtectedRoute requiredRole="branch_manager">
             <BranchManagerDashboard />
           </ProtectedRoute>
         }
@@ -331,7 +295,7 @@ function AppRoutes() {
       <Route
         path="/branch-admin-dashboard"
         element={
-          <ProtectedRoute requiredRole="branch-admin">
+          <ProtectedRoute requiredRole="branch_admin">
             <BranchAdminDashboard />
           </ProtectedRoute>
         }
@@ -341,7 +305,7 @@ function AppRoutes() {
       <Route
         path="/operational-dashboard"
         element={
-          <ProtectedRoute requiredRole="operational-manager">
+          <ProtectedRoute requiredRole="operational_manager">
             <OperationalManagerDashboard />
           </ProtectedRoute>
         }
@@ -359,9 +323,9 @@ function AppRoutes() {
 
       {/* Protected System Admin Routes */}
       <Route
-        path="/systemadmin-dashboard"
+        path="/system-admin-dashboard"
         element={
-          <ProtectedRoute requiredRole="system admin">
+          <ProtectedRoute requiredRole="super_admin">
             <SuperAdminDashboard />
           </ProtectedRoute>
         }
@@ -380,7 +344,7 @@ function App() {
         <ScrollToTop />
         <AppRoutes />
       </Router>
-    </AuthProvider> 
+    </AuthProvider>
   );
 }
 

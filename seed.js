@@ -1,160 +1,164 @@
 /**
- * Seed script for Firestore + Firebase Auth
- * Run with: node seed.js
-*/
+ * seed.js
+ * Seeds Firestore with sample data using lowercase collection names
+ * and camelCase field names.
+ * Run: node seed.js
+ */
 
-const admin = require("firebase-admin");
-const { v4: uuidv4 } = require("uuid");
+import admin from "firebase-admin";
+import { readFileSync } from "fs";
+const serviceAccount = JSON.parse(readFileSync(new URL("./serviceAccountKey.json", import.meta.url)));
 
-// Initialize Firebase Admin SDK
-const serviceAccount = require("./serviceAccountKey.json");
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount),
 });
 const db = admin.firestore();
 
-// Helpers
+// --- Helpers ---
+const randomInt = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
 const randomItem = (arr) => arr[Math.floor(Math.random() * arr.length)];
-const days = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
 
 async function seed() {
   try {
-    /** USERS + Firebase Auth **/
-    const userIds = [];
-    for (let i = 1; i <= 10; i++) {
-      const userRecord = await admin.auth().createUser({
-        email: `user${i}@mail.com`,
-        password: "password123", // same password for testing
-        displayName: `User ${i}`,
-      });
+    console.log("🌱 Starting seed...");
 
-      await db.collection("users").doc(userRecord.uid).set({
-        name: userRecord.displayName,
-        email: userRecord.email,
-        profileImage: null,
+    // --- suppliers (5) ---
+    const supplierNames = ["Beauty Essentials Co.", "Salon Tools Depot", "Glamour Products PH", "HairCare Plus", "ProBeauty Supplies"];
+    const supplierIds = [];
+    for (let i = 0; i < 5; i++) {
+      const ref = db.collection("suppliers").doc();
+      await ref.set({
+        name: supplierNames[i],
+        email: supplierNames[i].toLowerCase().replace(/\s+/g, "") + "@example.com",
+        phone: `+63-900-0000${i + 1}`,
       });
-
-      userIds.push(userRecord.uid);
+      supplierIds.push(ref.id);
     }
+    console.log(`✅ Suppliers seeded: ${supplierIds.length}`);
 
-    /** CLIENT ACCOUNTS **/
-    const clientCategories = ["X", "TR", "R"];
-    for (let i = 0; i < 10; i++) {
-      await db.collection("client_accounts").add({
-        user_id: userIds[i],
-        category: randomItem(clientCategories),
-        status: "active",
-        agreeToPromotions: Math.random() > 0.5,
-        termsAccepted: true,
-      });
-    }
-
-    /** BRANCHES **/
-    const branchIds = [];
-    for (let i = 1; i <= 10; i++) {
-      const branchRef = db.collection("branches").doc();
-      await branchRef.set({
-        branch_name: `Branch ${i}`,
-        address: `Address ${i}, City`,
-        phone: `+63-91234567${i}`,
-      });
-      branchIds.push(branchRef.id);
-    }
-
-    /** SERVICES **/
-    const services = [
-      { name: "Haircut", description: "Basic haircut", default_price: 300, workload_units: 5 },
-      { name: "Hair Color", description: "Full coloring", default_price: 1500, workload_units: 3 },
-      { name: "Rebond", description: "Hair rebonding", default_price: 2500, workload_units: 3 },
-      { name: "Blow Dry", description: "Quick dry", default_price: 200, workload_units: 1 },
-      { name: "Shampoo", description: "Shampoo wash", default_price: 100, workload_units: 1 },
+    // --- master_products (5) ---
+    const masterProducts = [
+      { name: "Keratin Treatment", category: "Hair Care", shelfLife: "2 years", unitCost: 120, sku: "KT-001", description: "Professional keratin treatment.", imageUrl: "https://via.placeholder.com/150", productStatus: "Active", supplier: randomItem(supplierIds) },
+      { name: "Hair Serum", category: "Hair Care", shelfLife: "1 year", unitCost: 210, sku: "HS-002", description: "Nourishing serum.", imageUrl: "https://via.placeholder.com/150", productStatus: "Active", supplier: randomItem(supplierIds) },
+      { name: "Scissors", category: "Tools", shelfLife: "5 years", unitCost: 900, sku: "SC-003", description: "Durable scissors.", imageUrl: "https://via.placeholder.com/150", productStatus: "Active", supplier: randomItem(supplierIds) },
+      { name: "Bleach Powder", category: "Hair Color", shelfLife: "3 years", unitCost: 520, sku: "BP-004", description: "High-performance bleach.", imageUrl: "https://via.placeholder.com/150", productStatus: "Active", supplier: randomItem(supplierIds) },
+      { name: "Hair Dye", category: "Hair Color", shelfLife: "2 years", unitCost: 300, sku: "HD-005", description: "Long-lasting dye.", imageUrl: "https://via.placeholder.com/150", productStatus: "Active", supplier: randomItem(supplierIds) },
     ];
 
-    const serviceIds = [];
-    for (let s of services) {
-      const serviceRef = db.collection("services").doc();
-      await serviceRef.set(s);
-      serviceIds.push(serviceRef.id);
+    const masterProductIds = [];
+    for (const mp of masterProducts) {
+      const ref = db.collection("master_products").doc();
+      await ref.set({
+        ...mp,
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+      });
+      masterProductIds.push(ref.id);
     }
+    console.log(`✅ Master products seeded: ${masterProductIds.length}`);
 
-    /** BRANCH SERVICES **/
-    const branchServiceIds = [];
-    for (let b of branchIds) {
-      for (let s of serviceIds) {
-        const branchServiceRef = db.collection("branch_services").doc();
-        await branchServiceRef.set({
-          branch_id: b,
-          service_id: s,
-          price_override: Math.random() > 0.5 ? Math.floor(Math.random() * 2000 + 200) : null,
-          availability: true,
+    // --- branch_products (5 per branch) ---
+    const branchesSnap = await db.collection("branches").get();
+    if (branchesSnap.empty) throw new Error("No branches found. Please create branches first.");
+    const branchIds = branchesSnap.docs.map((d) => d.id);
+
+    const branchProductIds = [];
+    for (const branchId of branchIds) {
+      for (let i = 0; i < 5; i++) {
+        const mpId = randomItem(masterProductIds);
+        const ref = db.collection("branch_products").doc();
+        await ref.set({
+          branchId,
+          productId: mpId,
+          otcPrice: randomInt(100, 500),
+          productStatus: "Active",
+          createdAt: admin.firestore.FieldValue.serverTimestamp(),
         });
-        branchServiceIds.push(branchServiceRef.id);
+        branchProductIds.push(ref.id);
       }
     }
+    console.log(`✅ Branch products seeded: ${branchProductIds.length}`);
 
-    /** STAFF ACCOUNTS **/
-    const staffIds = [];
-    for (let i = 1; i <= 10; i++) {
-      const staffRecord = await admin.auth().createUser({
-        email: `staff${i}@mail.com`,
-        password: "password123",
-        displayName: `Staff ${i}`,
+    // --- salon_use_products (5) ---
+    for (let i = 0; i < 5; i++) {
+      await db.collection("salon_use_products").doc().set({
+        branchId: randomItem(branchIds),
+        productId: randomItem(branchProductIds),
+        quantityUse: randomInt(1, 10),
+        quantityUsePercent: randomInt(5, 50),
+        notes: "Sample usage",
+        productStatus: "Active",
       });
-
-      await db.collection("users").doc(staffRecord.uid).set({
-        name: staffRecord.displayName,
-        email: staffRecord.email,
-        profileImage: null,
-      });
-
-      const staffRef = db.collection("staff_accounts").doc();
-      await staffRef.set({
-        user_id: staffRecord.uid,
-        branch_id: randomItem(branchIds),
-        role: "Stylist",
-      });
-
-      staffIds.push(staffRef.id);
     }
+    console.log("✅ Salon use products seeded");
 
-    /** STAFF SCHEDULES **/
-    for (let staff of staffIds) {
-      for (let i = 0; i < 3; i++) {
-        await db.collection("staff_schedules").add({
-          staff_id: staff,
-          day_of_week: randomItem(days),
-          start_time: "09:00",
-          end_time: "17:00",
+    // --- stocks (5) ---
+    for (let i = 0; i < 5; i++) {
+      const productId = randomItem(branchProductIds);
+      await db.collection("stocks").doc().set({
+        productId,
+        periodStart: new Date(),
+        periodEnd: new Date(),
+        beginnningStock: randomInt(10, 50),
+        weekOneStock: randomInt(5, 30),
+        weekTwoStock: randomInt(5, 30),
+        weekThreeStock: randomInt(5, 30),
+        weekFourStock: randomInt(5, 30),
+        endingStock: randomInt(5, 30),
+        remarks: "Sample stock",
+        status: "Active",
+      });
+    }
+    console.log("✅ Stocks seeded");
+
+    // --- stock_transfer (5) ---
+    for (let i = 0; i < 5; i++) {
+      await db.collection("stock_transfer").doc().set({
+        productId: randomItem(branchProductIds),
+        fromBranchId: randomItem(branchIds),
+        toBranchId: randomItem(branchIds),
+        status: "Completed",
+        transferType: "Lend",
+        lendQuantity: randomInt(1, 10),
+        returnedQuantity: randomInt(0, 5),
+        createdAt: admin.firestore.FieldValue.serverTimestamp(),
+        createdBy: "Admin",
+      });
+    }
+    console.log("✅ Stock transfers seeded");
+
+    // --- purchase_orders & details (5 each) ---
+    for (let i = 0; i < 5; i++) {
+      const supplierId = randomItem(supplierIds);
+      const poRef = db.collection("purchase_orders").doc();
+      await poRef.set({
+        supplierId,
+        orderDate: new Date(),
+        dateExpected: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000),
+        total: randomInt(500, 2000),
+        createdBy: "Admin",
+        approvedBy: "Manager",
+        approvalDate: new Date(),
+        notes: "Sample order",
+      });
+
+      for (let j = 0; j < 5; j++) {
+        await db.collection("purchase_orders_details").doc().set({
+          purchaseOrdersId: poRef.id,
+          productId: randomItem(branchProductIds),
+          quantity: randomInt(1, 10),
+          totalPrice: randomInt(100, 500),
+          status: "Pending",
+          notes: "Sample detail",
         });
       }
     }
+    console.log("✅ Purchase orders and details seeded");
 
-    /** STAFF SERVICES **/
-    for (let staff of staffIds) {
-      for (let i = 0; i < 3; i++) {
-        await db.collection("staff_services").add({
-          staff_id: staff,
-          branch_service_id: randomItem(branchServiceIds),
-        });
-      }
-    }
-
-    /** APPOINTMENTS **/
-    for (let i = 1; i <= 10; i++) {
-      await db.collection("appointments").add({
-        client_id: randomItem(userIds),
-        branch_id: randomItem(branchIds),
-        staff_id: randomItem(staffIds),
-        date: `2025-09-${String(i).padStart(2, "0")}`,
-        time: "10:00",
-        status: "scheduled",
-        services: [randomItem(branchServiceIds)],
-      });
-    }
-
-    console.log("✅ Firebase Auth + Firestore seed complete!");
+    console.log("🎉 Seeding complete!");
+    process.exit(0);
   } catch (err) {
-    console.error("❌ Error seeding data:", err);
+    console.error("❌ Seed failed:", err);
+    process.exit(1);
   }
 }
 
