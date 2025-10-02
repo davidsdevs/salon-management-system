@@ -54,10 +54,9 @@ import InventoryDashboard from "./InventoryController/InventoryDashboard";
 import InventoryProducts from "./InventoryController/InventoryProducts";
 import InventoryProductsDetails from "./InventoryController/InventoryProductsDetails";
 import InventoryStocks from "./InventoryController/InventoryStocks";
+import InventoryStocksTransfer from "./InventoryController/InventoryStocksTransfer";
+import InventoryBorrowLend from "./InventoryController/InventoryBorrowLend";
 
-
-// Stylist PAGES
-import StylistDashboard from "./Stylist/StylistDashboard";
 
 // HomePage wrapper that redirects authenticated users
 function HomePageWrapper() {
@@ -69,7 +68,7 @@ function HomePageWrapper() {
       const roleMap = {
         "client": "client-dashboard",
         "receptionist": "receptionist-dashboard", 
-        "inventory-controller": "inventory-dashboard",
+        "inventory_controller": "inventory-dashboard",
         "branch-manager": "branch-manager-dashboard",
         "branch-admin": "branch-admin-dashboard",
         "operational-manager": "operational-dashboard",
@@ -103,7 +102,7 @@ function AppRoutes() {
       </div>
     );
   }
-
+  
   return (
     <Routes>
       {/* Landing Page Routes */}
@@ -252,20 +251,6 @@ function AppRoutes() {
         }
       />
 
-      {/* Test Routes */}
-      <Route
-        path="/test-appointments"
-        element={<TestAppointmentModule />}
-      />
-      <Route
-        path="/seed-data"
-        element={<SeedDataComponent />}
-      />
-      <Route
-        path="/seed-stylists"
-        element={<SeedStylistsPage />}
-      />
-
       {/* Protected Inventory Controller Routes */}
       <Route
         path="/inventory-dashboard"
@@ -296,6 +281,24 @@ function AppRoutes() {
         element={
           <ProtectedRoute requiredRole="inventory_controller">
             <InventoryStocks/>
+          </ProtectedRoute>
+        }
+      />
+      
+      <Route
+        path="/inventory-stock-transfers"
+        element={
+          <ProtectedRoute requiredRole="inventory_controller">
+            <InventoryStocksTransfer/>
+          </ProtectedRoute>
+        }
+      />
+
+      <Route
+        path="/inventory-stock-transfers/borrow-lend"
+        element={
+          <ProtectedRoute requiredRole="inventory_controller">
+            <InventoryBorrowLend/>
           </ProtectedRoute>
         }
       />
@@ -354,14 +357,7 @@ function AppRoutes() {
       />
 
       {/* Protected Stylist Routes */}
-      <Route
-        path="/stylist-dashboard"
-        element={
-          <ProtectedRoute requiredRole="stylist">
-            <StylistDashboard />
-          </ProtectedRoute>
-        }
-      />
+      
 
       {/* Protected System Admin Routes */}
       <Route

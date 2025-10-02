@@ -38,6 +38,7 @@ const InventoryControllerSidebarWithHeader = ({
     { name: "Dashboard", icon: LayoutDashboard, route: "/inventory-dashboard" },
     { name: "Products", icon: Package, route: "/inventory-products" },
     { name: "Stock Management", icon: Boxes, route: "/inventory-stock" },
+    { name: "Stock Transfers", icon: Truck, route: "/inventory-stock-transfers" }, // ✅ New item
     { name: "Suppliers", icon: Truck, route: "/inventory-suppliers" },
     { name: "Purchase Orders / Stock Requests", icon: ClipboardList, route: "/inventory-controller-requests" },
     { name: "Deliveries", icon: Truck, route: "/inventory-controller-deliveries" },
@@ -45,12 +46,15 @@ const InventoryControllerSidebarWithHeader = ({
     { name: "Profile", icon: User, route: "/inventory-controller-profile" }
   ]
   
-  // ✅ Sync active menu with current route
+  // ✅ Sync active menu with current route, including subpaths
+  const normalizePath = (path) => path.replace(/\/+$/, "") // remove trailing slash
   useEffect(() => {
-    const current = menuItems.find(item => location.pathname.startsWith(item.route))
-    if (current) {
-      setActiveItem(current.name)
-    }
+    const current = menuItems.find(item => {
+      const itemRoute = normalizePath(item.route)
+      const path = normalizePath(location.pathname)
+      return path === itemRoute || path.startsWith(itemRoute + "/")
+    })
+    if (current) setActiveItem(current.name)
   }, [location.pathname])
 
   const handleMenuItemClick = (itemName, route) => {

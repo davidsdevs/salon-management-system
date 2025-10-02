@@ -48,6 +48,12 @@ export default function InventoryProductsDetails() {
         const stocksSnap = await getDocs(stocksQuery);
         const stocks = stocksSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
 
+        // 🔍 Log to debug stock field names and values
+        console.log("Fetched stocks:", stocks);
+        stocks.forEach((stock) => {
+          console.log("Stock ID:", stock.id, "Fields:", Object.keys(stock));
+        });
+
         setProductData({ branchProduct, master, supplierName, formulas, stocks });
       } catch (err) {
         console.error("Error fetching product details:", err);
@@ -78,10 +84,7 @@ export default function InventoryProductsDetails() {
             />
           )}
           <div>
-            <h2
-              className="text-2xl font-bold"
-              style={{ color: "#160B53" }}
-            >
+            <h2 className="text-2xl font-bold" style={{ color: "#160B53" }}>
               {master.name || "N/A"}
             </h2>
             <p className="text-gray-600 mt-1">{master.description || "No description available."}</p>
@@ -147,6 +150,7 @@ export default function InventoryProductsDetails() {
                           })}
                           :
                         </strong>{" "}
+                        {/* Adjust this line once you confirm the correct field name */}
                         {s.beginnningStock ?? 0}
                       </p>
                     </li>
